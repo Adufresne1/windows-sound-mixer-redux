@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SoundMixerRedux (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SoundMixerRedux (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
