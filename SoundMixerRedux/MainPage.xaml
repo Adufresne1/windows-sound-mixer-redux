@@ -3,16 +3,131 @@
     x:Class="SoundMixerRedux.MainPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctrl="using:SoundMixerRedux.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="using:SoundMixerRedux"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:SoundMixerRedux.ViewModels"
     mc:Ignorable="d">
 
-    <!--
-        This is the main content area of your application.
-        Add your UI elements here — for example, controls, layouts, and data-bound views.
-        Use 'dotnet new winui-page' to create additional pages and navigate to them via
-        the Frame in MainWindow (RootFrame).
-    -->
-    <Grid />
+    <Page.DataContext>
+        <vm:MixerViewModel />
+    </Page.DataContext>
+
+    <!--  Board scales with the window (Viewbox, aspect-preserving); sized to content on startup (MainWindow.xaml.cs).  -->
+    <Viewbox Stretch="Uniform">
+    <Grid Padding="16,8,16,18">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!--  OUTPUTS  -->
+        <StackPanel Grid.Column="0">
+            <Grid Margin="4,0,4,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!--  Settings gear  -->
+                <DropDownButton
+                    Grid.Column="0"
+                    Padding="10,7"
+                    Background="Transparent"
+                    BorderThickness="0">
+                    <StackPanel Orientation="Horizontal" Spacing="9">
+                        <FontIcon
+                            FontFamily="Segoe Fluent Icons"
+                            FontSize="16"
+                            Glyph="&#xE713;" />
+                        <TextBlock Text="Settings" />
+                    </StackPanel>
+                    <DropDownButton.Flyout>
+                        <MenuFlyout Placement="Bottom">
+                            <ToggleMenuFlyoutItem IsChecked="{Binding AlwaysOnTop, Mode=TwoWay}" Text="Toujours au premier plan" />
+                            <ToggleMenuFlyoutItem IsChecked="{Binding ShowDbScale, Mode=TwoWay}" Text="Afficher l'échelle dB" />
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+
+                <!--  Section label + device selector  -->
+                <StackPanel
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="11">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        CharacterSpacing="60"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Text="SORTIE" />
+                    <ComboBox
+                        MinWidth="200"
+                        MaxWidth="260"
+                        ItemsSource="{Binding OutputDevices}"
+                        SelectedItem="{Binding SelectedOutputDevice, Mode=TwoWay}" />
+                </StackPanel>
+            </Grid>
+
+            <ItemsControl ItemsSource="{Binding Outputs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="12" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <ctrl:ChannelStrip />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+        <!--  Divider  -->
+        <Rectangle
+            Grid.Column="1"
+            Width="1"
+            Margin="10,6,10,30"
+            Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+        <!--  INPUTS  -->
+        <StackPanel Grid.Column="2">
+            <StackPanel
+                Margin="4,0,4,12"
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="11">
+                <TextBlock
+                    VerticalAlignment="Center"
+                    CharacterSpacing="60"
+                    FontSize="12"
+                    FontWeight="SemiBold"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Text="ENTRÉE" />
+                <ComboBox
+                    MinWidth="180"
+                    MaxWidth="240"
+                    ItemsSource="{Binding InputDevices}"
+                    SelectedItem="{Binding SelectedInputDevice, Mode=TwoWay}" />
+            </StackPanel>
+
+            <ItemsControl ItemsSource="{Binding Inputs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="12" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <ctrl:ChannelStrip />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Grid>
+    </Viewbox>
 </Page>
