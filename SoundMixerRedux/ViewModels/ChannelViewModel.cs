@@ -21,13 +21,21 @@ public partial class ChannelViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSoloed;
 
+    /// <summary>False while another channel is soloed: you can't mute/unmute the non-soloed channels
+    /// (Solo owns their mute state), but Solo itself stays available for A/B transfer.</summary>
+    [ObservableProperty]
+    private bool _muteEnabled = true;
+
     /// <summary>Greyed out because another channel in the same section is soloed.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(NotDimmed))]
+    [NotifyPropertyChangedFor(nameof(StripOpacity))]
     private bool _isDimmed;
 
-    /// <summary>Convenience for XAML: bind IsEnabled to disable (grey out) a dimmed strip.</summary>
     public bool NotDimmed => !IsDimmed;
+
+    /// <summary>Dimmed strips are faded but stay interactive (so Solo can be transferred / a channel unmuted).</summary>
+    public double StripOpacity => IsDimmed ? 0.5 : 1.0;
 
     /// <summary>Current VU level 0..100 (real peak in dBFS-mapped %, Phase 4).</summary>
     [ObservableProperty]
@@ -60,6 +68,9 @@ public partial class ChannelViewModel : ObservableObject
     public bool ShowGlyph => IsMaster;
     public bool ShowIcon => !IsMaster && IconImage != null;
     public bool ShowInitials => !IsMaster && IconImage == null;
+
+    /// <summary>Master (endpoint) channels have no Solo — a mix always needs a source.</summary>
+    public bool ShowSolo => !IsMaster;
 
     // Muted → fader at −∞ dB; otherwise the volume percentage (unit folded in).
     public string VolumeLabel => IsMuted ? "−∞" : $"{(int)Math.Round(Volume)}%";

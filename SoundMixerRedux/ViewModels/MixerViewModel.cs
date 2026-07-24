@@ -37,8 +37,15 @@ public partial class MixerViewModel : ObservableObject
 
     // Real session channels: maps in both directions + the per-session external-change handlers.
     private readonly Dictionary<ChannelViewModel, IAudioControl> _controlByChannel = new();
-    private readonly Dictionary<AudioSessionController, ChannelViewModel> _channelBySession = new();
-    private readonly Dictionary<AudioSessionController, Action> _sessionHandlers = new();
+    private readonly Dictionary<AudioSessionGroup, ChannelViewModel> _channelByGroup = new();
+    private readonly Dictionary<AudioSessionGroup, Action> _groupHandlers = new();
+
+    // Solo: mute states captured before a solo engaged, restored when it releases (per section).
+    private readonly Dictionary<ChannelViewModel, bool> _priorMutesOut = new();
+    private readonly Dictionary<ChannelViewModel, bool> _priorMutesIn = new();
+
+    /// <summary>True while Solo drives mutes, so those changes aren't misread as manual mutes.</summary>
+    private bool _applyingSolo;
 
     /// <summary>True while pushing a Windows-originated change into a VM, to avoid writing it straight back.</summary>
     private bool _applyingExternal;
@@ -75,7 +82,7 @@ public partial class MixerViewModel : ObservableObject
                 _audio = new AudioService(ui);
                 _audio.Output.ExternalChange += () => PullControl(_audio.Output, _masterOutput);
                 _audio.Input.ExternalChange += () => PullControl(_audio.Input, _masterInput);
-                _audio.OutputSessionsChanged += ReconcileOutputSessions;
+                _audio.OutputGroupsChanged += ReconcileOutputSessions;
 
                 OutputDevices = _audio.GetDevices(DataFlow.Render);
                 InputDevices = _audio.GetDevices(DataFlow.Capture);
@@ -135,49 +142,60 @@ public partial class MixerViewModel : ObservableObject
     private void ReconcileOutputSessions()
     {
         if (_audio == null) return;
-        var current = _audio.OutputSessions;
+        var current = _audio.OutputGroups;
 
-        foreach (var sc in _channelBySession.Keys.Where(s => !current.Contains(s)).ToList())
-            RemoveSessionChannel(sc);
+        foreach (var g in _channelByGroup.Keys.Where(x => !current.Contains(x)).ToList())
+            RemoveSessionChannel(g);
 
-        foreach (var sc in current)
-            if (!_channelBySession.ContainsKey(sc))
-                AddSessionChannel(sc);
+        foreach (var g in current)
+            if (!_channelByGroup.ContainsKey(g))
+                AddSessionChannel(g);
     }
 
-    private void AddSessionChannel(AudioSessionController sc)
+    private void AddSessionChannel(AudioSessionGroup group)
     {
-        string name = ResolveName(sc);
+        var (name, iconPid) = ProcessNaming.Resolve(group.ProcessId, group.IsSystemSounds);
         var ch = new ChannelViewModel { Name = name, Initials = InitialsOf(name), TileColor = ColorFor(name) };
 
         // Seed from Windows before wiring the handler so it doesn't echo straight back.
-        try { ch.Volume = sc.VolumeScalar * 100.0; ch.IsMuted = sc.Mute; } catch { }
+        try { ch.Volume = group.VolumeScalar * 100.0; ch.IsMuted = group.Mute; } catch { }
         ch.PropertyChanged += OnChannelPropertyChanged;
 
-        ch.IconImage = TryLoadIcon(sc.ProcessId);
+        ch.IconImage = TryLoadIcon(iconPid);
         ch.ShowScale = ShowDbScale;
 
-        Action handler = () => PullControl(sc, ch);
-        _controlByChannel[ch] = sc;
-        _channelBySession[sc] = ch;
-        _sessionHandlers[sc] = handler;
-        sc.ExternalChange += handler;
+        Action handler = () => PullControl(group, ch);
+        _controlByChannel[ch] = group;
+        _channelByGroup[group] = ch;
+        _groupHandlers[group] = handler;
+        group.ExternalChange += handler;
 
         Outputs.Add(ch);
+
+        // If a solo is active in this section, fold the newcomer in (muted + dimmed + mute locked).
+        if (Outputs.Any(c => c.IsSoloed) && !ch.IsMaster)
+        {
+            _priorMutesOut[ch] = ch.IsMuted;
+            _applyingSolo = true;
+            try { ch.IsMuted = true; } finally { _applyingSolo = false; }
+            ch.IsDimmed = true;
+            ch.MuteEnabled = false;
+        }
     }
 
-    private void RemoveSessionChannel(AudioSessionController sc)
+    private void RemoveSessionChannel(AudioSessionGroup group)
     {
-        if (!_channelBySession.TryGetValue(sc, out var ch)) return;
+        if (!_channelByGroup.TryGetValue(group, out var ch)) return;
 
-        if (_sessionHandlers.TryGetValue(sc, out var handler))
+        if (_groupHandlers.TryGetValue(group, out var handler))
         {
-            sc.ExternalChange -= handler;
-            _sessionHandlers.Remove(sc);
+            group.ExternalChange -= handler;
+            _groupHandlers.Remove(group);
         }
         ch.PropertyChanged -= OnChannelPropertyChanged;
         _controlByChannel.Remove(ch);
-        _channelBySession.Remove(sc);
+        _channelByGroup.Remove(group);
+        _priorMutesOut.Remove(ch);
         Outputs.Remove(ch);
     }
 
@@ -232,26 +250,68 @@ public partial class MixerViewModel : ObservableObject
             else if (e.PropertyName == nameof(ChannelViewModel.IsMuted))
             {
                 control.Mute = changed.IsMuted;
+                if (!_applyingSolo && changed.IsMuted && changed.IsSoloed)
+                {
+                    // Manually muting the soloed channel cancels its solo (Q2) — and it stays muted,
+                    // so drop it from the restore map before releasing.
+                    (Outputs.Contains(changed) ? _priorMutesOut : _priorMutesIn).Remove(changed);
+                    changed.IsSoloed = false;
+                }
             }
         }
         catch { /* session/device may have vanished */ }
     }
 
     /// <summary>
-    /// Phase 1–3 solo preview: exclusive within a section (radio) + dims the others.
-    /// Full solo logic (Windows mute + prior-state restoration) is Phase 5.
+    /// Solo (Phase 5): exclusive within a section (radio). Mutes every other channel in the section
+    /// via Windows — except the Master endpoint, which must stay audible for the soloed app to be heard.
+    /// Prior mute states are captured on engage and restored on release.
     /// </summary>
     private void ApplySolo(ChannelViewModel changed)
     {
         var section = Outputs.Contains(changed) ? Outputs : Inputs;
+        var prior = ReferenceEquals(section, Outputs) ? _priorMutesOut : _priorMutesIn;
 
+        // Radio: only one soloed channel per section.
         if (changed.IsSoloed)
             foreach (var ch in section)
                 if (ch != changed) ch.IsSoloed = false;
 
-        bool anySolo = section.Any(c => c.IsSoloed);
+        var soloed = section.FirstOrDefault(c => c.IsSoloed);
+
+        _applyingSolo = true;
+        try
+        {
+            if (soloed != null)
+            {
+                // Capture prior mute states once, when solo first engages for this section.
+                if (prior.Count == 0)
+                    foreach (var ch in section)
+                        if (!ch.IsMaster)
+                            prior[ch] = ch.IsMuted;
+
+                // Mute everything except the soloed channel and the Master endpoint.
+                foreach (var ch in section)
+                    if (!ch.IsMaster)
+                        ch.IsMuted = ch != soloed;
+            }
+            else
+            {
+                // Solo released → restore captured mutes.
+                foreach (var kv in prior)
+                    kv.Key.IsMuted = kv.Value;
+                prior.Clear();
+            }
+        }
+        finally { _applyingSolo = false; }
+
+        // Dim + lock mute on non-soloed channels; Solo stays available for A/B transfer.
+        bool anySolo = soloed != null;
         foreach (var ch in section)
-            ch.IsDimmed = anySolo && !ch.IsSoloed;
+        {
+            ch.IsDimmed = anySolo && !ch.IsSoloed && !ch.IsMaster;
+            ch.MuteEnabled = !anySolo || ch.IsMaster || ch.IsSoloed;
+        }
     }
 
     // ---- Real VU metering (IAudioMeterInformation → dBFS) ----
@@ -287,25 +347,6 @@ public partial class MixerViewModel : ObservableObject
     }
 
     // ---- Session name / tile helpers ----
-
-    private static string ResolveName(AudioSessionController sc)
-    {
-        if (sc.IsSystemSounds) return "Sons système";
-
-        uint pid = sc.ProcessId;
-        try
-        {
-            using var p = Process.GetProcessById((int)pid);
-            try
-            {
-                var desc = p.MainModule?.FileVersionInfo.FileDescription;
-                if (!string.IsNullOrWhiteSpace(desc)) return desc!;
-            }
-            catch { /* MainModule can be inaccessible (access denied / cross-arch) */ }
-            return p.ProcessName;
-        }
-        catch { return $"App {pid}"; }
-    }
 
     private static string InitialsOf(string name)
     {
