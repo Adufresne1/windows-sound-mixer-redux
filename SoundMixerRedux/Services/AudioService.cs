@@ -22,9 +22,16 @@ public sealed class AudioService : IDisposable
     private AudioSessionManager? _outputSessionManager;
 
     private readonly Dictionary<uint, AudioSessionGroup> _groups = new();
+    private readonly NotificationClient _notificationClient;
 
     public AudioEndpointController Output { get; }
     public AudioEndpointController Input { get; }
+
+    /// <summary>Raised on the UI thread when a device is added/removed or changes state.</summary>
+    public event Action? DevicesChanged;
+
+    /// <summary>Raised on the UI thread when the default device changes (argument = the affected flow).</summary>
+    public event Action<DataFlow>? DefaultDeviceChanged;
 
     /// <summary>One entry per process (an app's sessions grouped together).</summary>
     public List<AudioSessionGroup> OutputGroups { get; } = new();
@@ -37,6 +44,8 @@ public sealed class AudioService : IDisposable
         _ui = ui;
         Output = new AudioEndpointController(ui);
         Input = new AudioEndpointController(ui);
+        _notificationClient = new NotificationClient(this);
+        _enumerator.RegisterEndpointNotificationCallback(_notificationClient);
     }
 
     public List<AudioDeviceInfo> GetDevices(DataFlow flow)
@@ -88,6 +97,9 @@ public sealed class AudioService : IDisposable
         _inputDevice = _enumerator.GetDevice(id);
         Input.Attach(_inputDevice);
     }
+
+    /// <summary>Make the given endpoint the Windows default (render or capture — the id carries the flow).</summary>
+    public void SetDefaultDevice(string id) => PolicyConfig.SetDefault(id);
 
     private void BuildOutputGroups()
     {
@@ -143,8 +155,32 @@ public sealed class AudioService : IDisposable
         _groups.Clear();
     }
 
+    private void RaiseDevicesChanged() => _ui.TryEnqueue(() => DevicesChanged?.Invoke());
+    private void RaiseDefaultChanged(DataFlow flow) => _ui.TryEnqueue(() => DefaultDeviceChanged?.Invoke(flow));
+
+    /// <summary>Bridges Core Audio endpoint notifications (MTA) to the service's UI-thread events.</summary>
+    private sealed class NotificationClient : IMMNotificationClient
+    {
+        private readonly AudioService _service;
+        public NotificationClient(AudioService service) => _service = service;
+
+        public void OnDeviceStateChanged(string deviceId, DeviceState newState) => _service.RaiseDevicesChanged();
+        public void OnDeviceAdded(string pwstrDeviceId) => _service.RaiseDevicesChanged();
+        public void OnDeviceRemoved(string deviceId) => _service.RaiseDevicesChanged();
+
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
+        {
+            // Console/Multimedia define the "default device"; skip Communications to avoid duplicate churn.
+            if (role != Role.Communications)
+                _service.RaiseDefaultChanged(flow);
+        }
+
+        public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
+    }
+
     public void Dispose()
     {
+        try { _enumerator.UnregisterEndpointNotificationCallback(_notificationClient); } catch { }
         ClearOutputGroups();
         if (_outputSessionManager != null)
             _outputSessionManager.OnSessionCreated -= OnSessionCreated;
