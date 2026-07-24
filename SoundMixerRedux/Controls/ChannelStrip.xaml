@@ -15,7 +15,7 @@
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1"
         CornerRadius="8">
-        <StackPanel HorizontalAlignment="Stretch">
+        <StackPanel HorizontalAlignment="Stretch" Padding="6,0">
 
             <!--  App / device tile: Fluent glyph for Master, initials otherwise  -->
             <Border
@@ -30,7 +30,12 @@
                         FontSize="20"
                         Foreground="White"
                         Glyph="{Binding Glyph}"
-                        Visibility="{Binding IsMaster, Converter={StaticResource BoolToVisibility}}" />
+                        Visibility="{Binding ShowGlyph, Converter={StaticResource BoolToVisibility}}" />
+                    <Image
+                        Width="24"
+                        Height="24"
+                        Source="{Binding IconImage}"
+                        Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVisibility}}" />
                     <TextBlock
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
@@ -38,7 +43,7 @@
                         FontWeight="SemiBold"
                         Foreground="White"
                         Text="{Binding Initials}"
-                        Visibility="{Binding IsMaster, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                        Visibility="{Binding ShowInitials, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
             </Border>
 
@@ -50,19 +55,12 @@
                 Text="{Binding Name}"
                 TextTrimming="CharacterEllipsis" />
 
-            <StackPanel
+            <TextBlock
                 Margin="0,2,0,0"
                 HorizontalAlignment="Center"
-                Orientation="Horizontal">
-                <TextBlock
-                    FontSize="12"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Text="{Binding VolumeLabel}" />
-                <TextBlock
-                    FontSize="12"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Text="%" />
-            </StackPanel>
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                Text="{Binding VolumeLabel}" />
 
             <!--  Fader wrap: VU meter + vertical slider  -->
             <Grid
@@ -72,27 +70,45 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Border
+                <!--  dB scale (Master strip only, toggled): positions map to dBFS floor of -48 dB over 180 px  -->
+                <Canvas
                     Grid.Column="0"
+                    Width="22"
+                    Height="180"
+                    Margin="0,0,6,0"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding ShowScale, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Canvas.Top="-7" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="0" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="15.5" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-6" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="38" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-12" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="68" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-20" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="105.5" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-30" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="167" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-&#8734;" TextAlignment="Right" />
+                </Canvas>
+
+                <Border
+                    Grid.Column="1"
                     Width="4"
                     Height="180"
                     Margin="0,0,9,0"
                     VerticalAlignment="Center"
-                    Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
                     CornerRadius="3">
-                    <Rectangle
-                        VerticalAlignment="Bottom"
-                        Height="{Binding Peak, Converter={StaticResource PercentToHeight}, ConverterParameter=180}"
-                        Fill="{StaticResource MeterBrush}"
-                        RadiusX="3"
-                        RadiusY="3" />
+                    <!--  Full-height gradient = fixed dB colour zones; the top mask hides the unfilled part.  -->
+                    <Grid>
+                        <Rectangle Fill="{StaticResource MeterBrush}" />
+                        <Rectangle
+                            VerticalAlignment="Top"
+                            Height="{Binding Peak, Converter={StaticResource PercentToRemainingHeight}, ConverterParameter=180}"
+                            Fill="{ThemeResource MeterTrackBrush}" />
+                    </Grid>
                 </Border>
 
                 <Slider
-                    Grid.Column="1"
-                    Width="24"
+                    Grid.Column="2"
+                    Width="32"
                     Height="180"
                     VerticalAlignment="Center"
                     Maximum="100"

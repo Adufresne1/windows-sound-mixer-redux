@@ -13,8 +13,13 @@
         <vm:MixerViewModel />
     </Page.DataContext>
 
-    <!--  Board scales with the window (Viewbox, aspect-preserving); sized to content on startup (MainWindow.xaml.cs).  -->
-    <Viewbox Stretch="Uniform">
+    <!--  Board at natural size (DPI handled by the framework); scrolls if it overflows the window.  -->
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Auto"
+        HorizontalScrollMode="Auto"
+        VerticalScrollBarVisibility="Auto"
+        VerticalScrollMode="Auto"
+        ZoomMode="Disabled">
     <Grid Padding="16,8,16,18">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -129,5 +134,5 @@
             </ItemsControl>
         </StackPanel>
     </Grid>
-    </Viewbox>
+    </ScrollViewer>
 </Page>

@@ -19,6 +19,7 @@
                     <SolidColorBrush x:Key="SoloSoftBrush" Color="#29FFD479" />
                     <SolidColorBrush x:Key="MuteBorderBrush" Color="#73FF99A4" />
                     <SolidColorBrush x:Key="SoloBorderBrush" Color="#73FFD479" />
+                    <SolidColorBrush x:Key="MeterTrackBrush" Color="#2E353D" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="MuteBrush" Color="#C4314B" />
@@ -27,21 +28,23 @@
                     <SolidColorBrush x:Key="SoloSoftBrush" Color="#298A6D00" />
                     <SolidColorBrush x:Key="MuteBorderBrush" Color="#73C4314B" />
                     <SolidColorBrush x:Key="SoloBorderBrush" Color="#738A6D00" />
+                    <SolidColorBrush x:Key="MeterTrackBrush" Color="#D2D6DB" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
             <!-- Converters -->
             <conv:PercentToHeightConverter x:Key="PercentToHeight" />
+            <conv:PercentToRemainingHeightConverter x:Key="PercentToRemainingHeight" />
             <conv:HexToBrushConverter x:Key="HexToBrush" />
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
 
             <!-- VU meter colour zones (theme-independent): green ≤ -6 dB, yellow -6→-2, red -2→0 -->
             <LinearGradientBrush x:Key="MeterBrush" StartPoint="0,1" EndPoint="0,0">
                 <GradientStop Color="#35C46F" Offset="0.0" />
-                <GradientStop Color="#35C46F" Offset="0.66" />
-                <GradientStop Color="#FFCF4D" Offset="0.68" />
-                <GradientStop Color="#FFCF4D" Offset="0.865" />
-                <GradientStop Color="#FF5964" Offset="0.885" />
+                <GradientStop Color="#35C46F" Offset="0.875" />
+                <GradientStop Color="#FFCF4D" Offset="0.88" />
+                <GradientStop Color="#FFCF4D" Offset="0.958" />
+                <GradientStop Color="#FF5964" Offset="0.963" />
                 <GradientStop Color="#FF5964" Offset="1.0" />
             </LinearGradientBrush>
         </ResourceDictionary>
