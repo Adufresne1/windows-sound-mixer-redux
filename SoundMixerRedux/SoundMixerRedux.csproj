@@ -73,9 +73,15 @@
 
   <!-- Publish Properties -->
   <PropertyGroup>
-    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <!--
+      No trimming / ReadyToRun. The app relies on reflection (XAML, System.Text.Json settings) and
+      COM interop (NAudio/WASAPI, IPolicyConfig, IMMNotificationClient). Trimming's feature switches
+      baked "BuiltInComInterop.IsSupported=false" and "JsonSerializer.IsReflectionEnabledByDefault=false"
+      into the runtimeconfig, which silently broke device enumeration and settings on Release builds.
+    -->
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
 </Project>
