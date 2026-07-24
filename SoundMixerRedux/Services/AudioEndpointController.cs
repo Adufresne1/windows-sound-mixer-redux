@@ -9,7 +9,7 @@ namespace SoundMixerRedux.Services;
 /// volume/mute. External changes (keyboard, Windows panel, other apps) are surfaced
 /// via <see cref="ExternalChange"/>, always raised on the UI thread.
 /// </summary>
-public sealed class AudioEndpointController : IDisposable
+public sealed class AudioEndpointController : IAudioControl, IDisposable
 {
     private readonly DispatcherQueue _ui;
     private MMDevice? _device;
@@ -34,6 +34,11 @@ public sealed class AudioEndpointController : IDisposable
         set { if (_device != null) _device.AudioEndpointVolume.Mute = value; }
     }
 
+    public float Peak
+    {
+        get { try { return _device?.AudioMeterInformation.MasterPeakValue ?? 0f; } catch { return 0f; } }
+    }
+
     /// <summary>Point this controller at a new device, releasing any previous one.</summary>
     public void Attach(MMDevice device)
     {
@@ -47,7 +52,7 @@ public sealed class AudioEndpointController : IDisposable
         if (_device == null) return;
         try { _device.AudioEndpointVolume.OnVolumeNotification -= OnVolumeNotification; }
         catch { /* device may already be gone */ }
-        try { _device.Dispose(); } catch { }
+        // The device instance is owned and disposed by AudioService, not here.
         _device = null;
     }
 
