@@ -47,6 +47,9 @@ public partial class MixerViewModel : ObservableObject
     /// <summary>True while Solo drives mutes, so those changes aren't misread as manual mutes.</summary>
     private bool _applyingSolo;
 
+    /// <summary>True while syncing the selection to an external/default change, to avoid re-setting the default.</summary>
+    private bool _syncingDevices;
+
     /// <summary>True while pushing a Windows-originated change into a VM, to avoid writing it straight back.</summary>
     private bool _applyingExternal;
 
@@ -83,6 +86,8 @@ public partial class MixerViewModel : ObservableObject
                 _audio.Output.ExternalChange += () => PullControl(_audio.Output, _masterOutput);
                 _audio.Input.ExternalChange += () => PullControl(_audio.Input, _masterInput);
                 _audio.OutputGroupsChanged += ReconcileOutputSessions;
+                _audio.DevicesChanged += OnDevicesChanged;
+                _audio.DefaultDeviceChanged += OnDefaultDeviceChanged;
 
                 OutputDevices = _audio.GetDevices(DataFlow.Render);
                 InputDevices = _audio.GetDevices(DataFlow.Capture);
@@ -114,7 +119,11 @@ public partial class MixerViewModel : ObservableObject
         if (_audio == null || value == null) return;
         try
         {
-            _audio.SetOutputDevice(value.Id);   // re-attaches endpoint + rebuilds sessions (fires OutputSessionsChanged)
+            // Picking a device switches the real Windows default (unless we're just syncing to an external change).
+            if (!_syncingDevices && value.Id != _audio.GetDefaultDeviceId(DataFlow.Render))
+                TrySetDefault(value.Id);
+
+            _audio.SetOutputDevice(value.Id);   // re-attaches endpoint + rebuilds session groups
             PullControl(_audio.Output, _masterOutput);
         }
         catch { /* device vanished between enumeration and attach */ }
@@ -125,10 +134,67 @@ public partial class MixerViewModel : ObservableObject
         if (_audio == null || value == null) return;
         try
         {
+            if (!_syncingDevices && value.Id != _audio.GetDefaultDeviceId(DataFlow.Capture))
+                TrySetDefault(value.Id);
+
             _audio.SetInputDevice(value.Id);
             PullControl(_audio.Input, _masterInput);
         }
         catch { }
+    }
+
+    /// <summary>Best-effort default switch: a failure (e.g. IPolicyConfig blocked on a locked-down Windows)
+    /// must not stop the selector from re-targeting the mixer.</summary>
+    private void TrySetDefault(string id)
+    {
+        try { _audio!.SetDefaultDevice(id); }
+        catch { /* fall back to re-targeting only */ }
+    }
+
+    /// <summary>Windows default changed (by us or another app) → follow it in the selector.</summary>
+    private void OnDefaultDeviceChanged(DataFlow flow)
+    {
+        if (_audio == null) return;
+        _syncingDevices = true;
+        try
+        {
+            if (flow == DataFlow.Render)
+            {
+                var match = OutputDevices.FirstOrDefault(d => d.Id == _audio.GetDefaultDeviceId(DataFlow.Render));
+                if (match != null && match != SelectedOutputDevice) SelectedOutputDevice = match;
+            }
+            else if (flow == DataFlow.Capture)
+            {
+                var match = InputDevices.FirstOrDefault(d => d.Id == _audio.GetDefaultDeviceId(DataFlow.Capture));
+                if (match != null && match != SelectedInputDevice) SelectedInputDevice = match;
+            }
+        }
+        finally { _syncingDevices = false; }
+    }
+
+    /// <summary>A device was plugged/unplugged or changed state → refresh the lists, keeping the selection.</summary>
+    private void OnDevicesChanged()
+    {
+        if (_audio == null) return;
+        string? outId = SelectedOutputDevice?.Id;
+        string? inId = SelectedInputDevice?.Id;
+
+        OutputDevices = _audio.GetDevices(DataFlow.Render);
+        InputDevices = _audio.GetDevices(DataFlow.Capture);
+        OnPropertyChanged(nameof(OutputDevices));
+        OnPropertyChanged(nameof(InputDevices));
+
+        _syncingDevices = true;
+        try
+        {
+            SelectedOutputDevice = OutputDevices.FirstOrDefault(d => d.Id == outId)
+                ?? OutputDevices.FirstOrDefault(d => d.Id == _audio.GetDefaultDeviceId(DataFlow.Render))
+                ?? OutputDevices.FirstOrDefault();
+            SelectedInputDevice = InputDevices.FirstOrDefault(d => d.Id == inId)
+                ?? InputDevices.FirstOrDefault(d => d.Id == _audio.GetDefaultDeviceId(DataFlow.Capture))
+                ?? InputDevices.FirstOrDefault();
+        }
+        finally { _syncingDevices = false; }
     }
 
     partial void OnShowDbScaleChanged(bool value)
