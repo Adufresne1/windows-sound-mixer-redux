@@ -30,6 +30,23 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+
+        UnhandledException += (_, e) => LogCrash("UI", e.Exception);
+        System.AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash("Domain", e.ExceptionObject as System.Exception);
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) => LogCrash("Task", e.Exception);
+    }
+
+    private static void LogCrash(string source, System.Exception? ex)
+    {
+        try
+        {
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "SoundMixerRedux");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(dir, "crash.txt"),
+                $"[{source}] {ex}\n\n");
+        }
+        catch { }
     }
 
     /// <summary>

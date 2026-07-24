@@ -1,20 +1,18 @@
 using Microsoft.UI.Xaml.Controls;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using SoundMixerRedux.ViewModels;
 
 namespace SoundMixerRedux;
 
 /// <summary>
 /// The main content page displayed inside the application window.
-/// Add your UI logic, event handlers, and data binding here.
 /// </summary>
 public sealed partial class MainPage : Page
 {
     public MainPage()
     {
         InitializeComponent();
-
-        // TODO: Add your initialization logic here.
     }
+
+    /// <summary>The mixer view model (instantiated as this page's DataContext in XAML).</summary>
+    public MixerViewModel ViewModel => (MixerViewModel)DataContext;
 }

@@ -68,6 +68,9 @@ public partial class MixerViewModel : ObservableObject
 
     public MixerViewModel()
     {
+        ShowDbScale = SettingsService.Current.ShowDbScale;
+        AlwaysOnTop = SettingsService.Current.AlwaysOnTop;
+
         _masterOutput = new ChannelViewModel { Name = "Système", IsMaster = true, Volume = 80, Glyph = char.ConvertFromUtf32(0xE767), TileColor = "#3A7BD5" };
         _masterInput = new ChannelViewModel { Name = "Microphone", IsMaster = true, Volume = 70, Glyph = char.ConvertFromUtf32(0xE720), TileColor = "#1F9D6B" };
 
@@ -201,6 +204,15 @@ public partial class MixerViewModel : ObservableObject
     {
         foreach (var ch in Outputs) ch.ShowScale = value;
         foreach (var ch in Inputs) ch.ShowScale = value;
+
+        SettingsService.Current.ShowDbScale = value;
+        SettingsService.Save();
+    }
+
+    partial void OnAlwaysOnTopChanged(bool value)
+    {
+        SettingsService.Current.AlwaysOnTop = value;
+        SettingsService.Save();
     }
 
     // ---- Session channels (add/remove reconciliation) ----
