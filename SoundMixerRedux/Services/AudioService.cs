@@ -9,7 +9,8 @@ namespace SoundMixerRedux.Services;
 /// <summary>
 /// Entry point to Windows Core Audio (WASAPI) via NAudio.
 /// Owns the active render/capture devices, exposes their Master volume/mute
-/// (<see cref="Output"/>/<see cref="Input"/>) and the render device's per-app sessions.
+/// (<see cref="Output"/>/<see cref="Input"/>) and the render device's per-app sessions,
+/// grouped by process (one <see cref="AudioSessionGroup"/> per app, like the Windows Volume Mixer).
 /// </summary>
 public sealed class AudioService : IDisposable
 {
@@ -20,14 +21,16 @@ public sealed class AudioService : IDisposable
     private MMDevice? _inputDevice;
     private AudioSessionManager? _outputSessionManager;
 
+    private readonly Dictionary<uint, AudioSessionGroup> _groups = new();
+
     public AudioEndpointController Output { get; }
     public AudioEndpointController Input { get; }
 
-    /// <summary>Live per-app sessions of the current output device.</summary>
-    public List<AudioSessionController> OutputSessions { get; } = new();
+    /// <summary>One entry per process (an app's sessions grouped together).</summary>
+    public List<AudioSessionGroup> OutputGroups { get; } = new();
 
-    /// <summary>Raised on the UI thread whenever the output session list changes.</summary>
-    public event Action? OutputSessionsChanged;
+    /// <summary>Raised on the UI thread whenever the output group list changes.</summary>
+    public event Action? OutputGroupsChanged;
 
     public AudioService(DispatcherQueue ui)
     {
@@ -55,11 +58,11 @@ public sealed class AudioService : IDisposable
         return device.ID;
     }
 
-    /// <summary>Target a render device: master volume/mute + its per-app sessions.</summary>
+    /// <summary>Target a render device: master volume/mute + its per-app session groups.</summary>
     public void SetOutputDevice(string id)
     {
         Output.Detach();
-        ClearOutputSessions();
+        ClearOutputGroups();
         if (_outputSessionManager != null)
         {
             _outputSessionManager.OnSessionCreated -= OnSessionCreated;
@@ -72,9 +75,9 @@ public sealed class AudioService : IDisposable
 
         _outputSessionManager = _outputDevice.AudioSessionManager;
         _outputSessionManager.OnSessionCreated += OnSessionCreated;
-        BuildOutputSessions();
+        BuildOutputGroups();
 
-        OutputSessionsChanged?.Invoke();
+        OutputGroupsChanged?.Invoke();
     }
 
     /// <summary>Target a capture device (master level only — per-app capture sessions are out of scope).</summary>
@@ -86,7 +89,7 @@ public sealed class AudioService : IDisposable
         Input.Attach(_inputDevice);
     }
 
-    private void BuildOutputSessions()
+    private void BuildOutputGroups()
     {
         if (_outputSessionManager == null) return;
         var sessions = _outputSessionManager.Sessions;
@@ -94,23 +97,32 @@ public sealed class AudioService : IDisposable
         {
             var control = sessions[i];
             if (control.State == AudioSessionState.AudioSessionStateExpired) continue;
-            AddSession(control);
+            AddSessionToGroup(control);
         }
     }
 
-    private void AddSession(AudioSessionControl control)
+    private void AddSessionToGroup(AudioSessionControl control)
     {
-        var controller = new AudioSessionController(control, _ui);
-        controller.Disconnected += () => RemoveSession(controller);
-        OutputSessions.Add(controller);
+        var member = new AudioSessionController(control, _ui);
+        uint key = member.IsSystemSounds ? 0u : member.ProcessId;
+
+        if (!_groups.TryGetValue(key, out var group))
+        {
+            group = new AudioSessionGroup(member.ProcessId, member.IsSystemSounds);
+            group.Emptied += () => RemoveGroup(key);
+            _groups[key] = group;
+            OutputGroups.Add(group);
+        }
+        group.Add(member);
     }
 
-    private void RemoveSession(AudioSessionController controller)
+    private void RemoveGroup(uint key)
     {
-        if (!OutputSessions.Remove(controller))
-            return;
-        controller.Dispose();
-        OutputSessionsChanged?.Invoke();
+        if (!_groups.TryGetValue(key, out var group)) return;
+        _groups.Remove(key);
+        OutputGroups.Remove(group);
+        group.Dispose();
+        OutputGroupsChanged?.Invoke();
     }
 
     private void OnSessionCreated(object? sender, IAudioSessionControl newSession)
@@ -118,21 +130,22 @@ public sealed class AudioService : IDisposable
         // Callback arrives on an MTA COM thread — marshal to the UI thread.
         _ui.TryEnqueue(() =>
         {
-            AddSession(new AudioSessionControl(newSession));
-            OutputSessionsChanged?.Invoke();
+            AddSessionToGroup(new AudioSessionControl(newSession));
+            OutputGroupsChanged?.Invoke();
         });
     }
 
-    private void ClearOutputSessions()
+    private void ClearOutputGroups()
     {
-        foreach (var session in OutputSessions)
-            session.Dispose();
-        OutputSessions.Clear();
+        foreach (var group in OutputGroups)
+            group.Dispose();
+        OutputGroups.Clear();
+        _groups.Clear();
     }
 
     public void Dispose()
     {
-        ClearOutputSessions();
+        ClearOutputGroups();
         if (_outputSessionManager != null)
             _outputSessionManager.OnSessionCreated -= OnSessionCreated;
         Output.Dispose();
