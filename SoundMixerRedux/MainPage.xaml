@@ -53,6 +53,8 @@
                         <MenuFlyout Placement="Bottom">
                             <ToggleMenuFlyoutItem IsChecked="{Binding AlwaysOnTop, Mode=TwoWay}" Text="Toujours au premier plan" />
                             <ToggleMenuFlyoutItem IsChecked="{Binding ShowDbScale, Mode=TwoWay}" Text="Afficher l'échelle dB" />
+                            <ToggleMenuFlyoutItem IsChecked="{Binding StickToRight, Mode=TwoWay}" Text="Coller à droite" />
+                            <ToggleMenuFlyoutItem IsChecked="{Binding Pinned, Mode=TwoWay}" Text="Épingler (bloquer le déplacement)" />
                         </MenuFlyout>
                     </DropDownButton.Flyout>
                 </DropDownButton>

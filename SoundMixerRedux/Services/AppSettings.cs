@@ -10,6 +10,8 @@ public sealed class AppSettings
 {
     public bool AlwaysOnTop { get; set; }
     public bool ShowDbScale { get; set; } = true;
+    public bool StickToRight { get; set; }
+    public bool Pinned { get; set; }
 
     public int? WindowX { get; set; }
     public int? WindowY { get; set; }

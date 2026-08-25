@@ -65,6 +65,8 @@ public partial class MixerViewModel : ObservableObject
     // Settings (mock, visual only until Phase 7).
     [ObservableProperty] private bool _alwaysOnTop;
     [ObservableProperty] private bool _showDbScale = true;
+    [ObservableProperty] private bool _stickToRight;
+    [ObservableProperty] private bool _pinned;
 
     /// <summary>Recomputed by MainWindow whenever the window is resized or the track count changes;
     /// propagated to every channel's Scale so ChannelStrip.xaml grows/shrinks with the window.</summary>
@@ -74,6 +76,8 @@ public partial class MixerViewModel : ObservableObject
     {
         ShowDbScale = SettingsService.Current.ShowDbScale;
         AlwaysOnTop = SettingsService.Current.AlwaysOnTop;
+        StickToRight = SettingsService.Current.StickToRight;
+        Pinned = SettingsService.Current.Pinned;
 
         _masterOutput = new ChannelViewModel { Name = "Système", IsMaster = true, Volume = 80, Glyph = char.ConvertFromUtf32(0xE767), TileColor = "#3A7BD5" };
         _masterInput = new ChannelViewModel { Name = "Microphone", IsMaster = true, Volume = 70, Glyph = char.ConvertFromUtf32(0xE720), TileColor = "#1F9D6B" };
@@ -216,6 +220,18 @@ public partial class MixerViewModel : ObservableObject
     partial void OnAlwaysOnTopChanged(bool value)
     {
         SettingsService.Current.AlwaysOnTop = value;
+        SettingsService.Save();
+    }
+
+    partial void OnStickToRightChanged(bool value)
+    {
+        SettingsService.Current.StickToRight = value;
+        SettingsService.Save();
+    }
+
+    partial void OnPinnedChanged(bool value)
+    {
+        SettingsService.Current.Pinned = value;
         SettingsService.Save();
     }
 
