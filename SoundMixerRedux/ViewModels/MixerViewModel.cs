@@ -66,6 +66,10 @@ public partial class MixerViewModel : ObservableObject
     [ObservableProperty] private bool _alwaysOnTop;
     [ObservableProperty] private bool _showDbScale = true;
 
+    /// <summary>Recomputed by MainWindow whenever the window is resized or the track count changes;
+    /// propagated to every channel's Scale so ChannelStrip.xaml grows/shrinks with the window.</summary>
+    [ObservableProperty] private double _boardScale = 1.0;
+
     public MixerViewModel()
     {
         ShowDbScale = SettingsService.Current.ShowDbScale;
@@ -215,6 +219,12 @@ public partial class MixerViewModel : ObservableObject
         SettingsService.Save();
     }
 
+    partial void OnBoardScaleChanged(double value)
+    {
+        foreach (var ch in Outputs) ch.Scale = value;
+        foreach (var ch in Inputs) ch.Scale = value;
+    }
+
     // ---- Session channels (add/remove reconciliation) ----
 
     private void ReconcileOutputSessions()
@@ -233,7 +243,7 @@ public partial class MixerViewModel : ObservableObject
     private void AddSessionChannel(AudioSessionGroup group)
     {
         var (name, iconPid) = ProcessNaming.Resolve(group.ProcessId, group.IsSystemSounds);
-        var ch = new ChannelViewModel { Name = name, Initials = InitialsOf(name), TileColor = ColorFor(name) };
+        var ch = new ChannelViewModel { Name = name, Initials = InitialsOf(name), TileColor = ColorFor(name), Scale = BoardScale };
 
         // Seed from Windows before wiring the handler so it doesn't echo straight back.
         try { ch.Volume = group.VolumeScalar * 100.0; ch.IsMuted = group.Mute; } catch { }

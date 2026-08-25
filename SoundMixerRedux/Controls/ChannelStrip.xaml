@@ -8,8 +8,19 @@
     Opacity="{Binding StripOpacity}"
     mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <!--  The default vertical Slider template's inner grid has fixed Pre/PostContentMargin columns
+        (14px each) flanking the track, which floor its natural width at 32px regardless of MinWidth —
+        that's why zeroing SliderVerticalWidth alone wasn't enough. Zeroing the margins too collapses
+        the floor down to just the round thumb's own fixed size (18px), which fits our smallest scaled
+        Slider width and stops the thumb from overflowing/clipping at low Scale.  -->
+        <x:Double x:Key="SliderVerticalWidth">0</x:Double>
+        <x:Double x:Key="SliderPreContentMargin">0</x:Double>
+        <x:Double x:Key="SliderPostContentMargin">0</x:Double>
+    </UserControl.Resources>
+
     <Grid
-        Width="128"
+        Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=128}"
         Padding="10,16,10,14"
         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -19,27 +30,27 @@
 
             <!--  App / device tile: Fluent glyph for Master, initials otherwise  -->
             <Border
-                Width="40"
-                Height="40"
+                Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=40}"
+                Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=40}"
                 HorizontalAlignment="Center"
                 Background="{Binding TileColor, Converter={StaticResource HexToBrush}}"
                 CornerRadius="10">
                 <Grid>
                     <FontIcon
                         FontFamily="Segoe Fluent Icons"
-                        FontSize="20"
+                        FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=20}"
                         Foreground="White"
                         Glyph="{Binding Glyph}"
                         Visibility="{Binding ShowGlyph, Converter={StaticResource BoolToVisibility}}" />
                     <Image
-                        Width="24"
-                        Height="24"
+                        Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=24}"
+                        Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=24}"
                         Source="{Binding IconImage}"
                         Visibility="{Binding ShowIcon, Converter={StaticResource BoolToVisibility}}" />
                     <TextBlock
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        FontSize="15"
+                        FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=15}"
                         FontWeight="SemiBold"
                         Foreground="White"
                         Text="{Binding Initials}"
@@ -50,7 +61,7 @@
             <TextBlock
                 Margin="0,10,0,0"
                 HorizontalAlignment="Center"
-                FontSize="13"
+                FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=13}"
                 FontWeight="SemiBold"
                 Text="{Binding Name}"
                 TextTrimming="CharacterEllipsis" />
@@ -58,13 +69,13 @@
             <TextBlock
                 Margin="0,2,0,0"
                 HorizontalAlignment="Center"
-                FontSize="12"
+                FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=12}"
                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                 Text="{Binding VolumeLabel}" />
 
             <!--  Fader wrap: VU meter + vertical slider  -->
             <Grid
-                Height="190"
+                Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=190}"
                 Margin="0,14,0,12"
                 HorizontalAlignment="Center">
                 <Grid.ColumnDefinitions>
@@ -76,23 +87,23 @@
                 <!--  dB scale (Master strip only, toggled): positions map to dBFS floor of -48 dB over 180 px  -->
                 <Canvas
                     Grid.Column="0"
-                    Width="22"
-                    Height="180"
+                    Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=22}"
+                    Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=180}"
                     Margin="0,0,6,0"
                     VerticalAlignment="Center"
                     Visibility="{Binding ShowScale, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Canvas.Top="-7" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="0" TextAlignment="Right" />
-                    <TextBlock Canvas.Top="15.5" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-6" TextAlignment="Right" />
-                    <TextBlock Canvas.Top="38" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-12" TextAlignment="Right" />
-                    <TextBlock Canvas.Top="68" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-20" TextAlignment="Right" />
-                    <TextBlock Canvas.Top="105.5" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-30" TextAlignment="Right" />
-                    <TextBlock Canvas.Top="167" Width="22" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-&#8734;" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=-7}" Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=22}" FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=9}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="0" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=15.5}" Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=22}" FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=9}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-6" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=38}" Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=22}" FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=9}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-12" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=68}" Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=22}" FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=9}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-20" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=105.5}" Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=22}" FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=9}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-30" TextAlignment="Right" />
+                    <TextBlock Canvas.Top="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=167}" Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=22}" FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=9}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="-&#8734;" TextAlignment="Right" />
                 </Canvas>
 
                 <Border
                     Grid.Column="1"
-                    Width="4"
-                    Height="180"
+                    Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=4}"
+                    Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=180}"
                     Margin="0,0,9,0"
                     VerticalAlignment="Center"
                     CornerRadius="3">
@@ -108,8 +119,8 @@
 
                 <Slider
                     Grid.Column="2"
-                    Width="32"
-                    Height="180"
+                    Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=32}"
+                    Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=180}"
                     VerticalAlignment="Center"
                     Maximum="100"
                     Minimum="0"
@@ -123,12 +134,13 @@
                 Orientation="Horizontal"
                 Spacing="7">
                 <ToggleButton
-                    Width="34"
-                    Height="30"
-                    MinWidth="34"
+                    Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=34}"
+                    Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=30}"
                     Padding="0"
+                    BorderThickness="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=1}"
                     Content="M"
                     CornerRadius="5"
+                    FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=14}"
                     FontWeight="SemiBold"
                     IsChecked="{Binding IsMuted, Mode=TwoWay}"
                     IsEnabled="{Binding MuteEnabled}"
@@ -144,12 +156,13 @@
                     </ToggleButton.Resources>
                 </ToggleButton>
                 <ToggleButton
-                    Width="34"
-                    Height="30"
-                    MinWidth="34"
+                    Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=34}"
+                    Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=30}"
                     Padding="0"
+                    BorderThickness="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=1}"
                     Content="S"
                     CornerRadius="5"
+                    FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=14}"
                     FontWeight="SemiBold"
                     IsChecked="{Binding IsSoloed, Mode=TwoWay}"
                     ToolTipService.ToolTip="Solo"

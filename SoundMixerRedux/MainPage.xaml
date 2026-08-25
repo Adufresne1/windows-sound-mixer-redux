@@ -78,7 +78,7 @@
                 </StackPanel>
             </Grid>
 
-            <ItemsControl ItemsSource="{Binding Outputs}">
+            <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding Outputs}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" Spacing="12" />
@@ -120,7 +120,7 @@
                     SelectedItem="{Binding SelectedInputDevice, Mode=TwoWay}" />
             </StackPanel>
 
-            <ItemsControl ItemsSource="{Binding Inputs}">
+            <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding Inputs}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" Spacing="12" />

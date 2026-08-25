@@ -45,6 +45,11 @@ public partial class ChannelViewModel : ObservableObject
     [ObservableProperty]
     private bool _showScale;
 
+    /// <summary>Multiplier applied to every fixed dimension in ChannelStrip.xaml, kept in sync with the
+    /// window size by MixerViewModel.BoardScale (real layout, not a RenderTransform).</summary>
+    [ObservableProperty]
+    private double _scale = 1.0;
+
     public string Name { get; set; } = string.Empty;
 
     public bool IsMaster { get; set; }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -11,18 +12,34 @@ namespace SoundMixerRedux;
 
 /// <summary>
 /// The application window. Hosts the custom title bar and a Frame that displays MainPage.
-/// Persisted bounds (validated against connected displays) and always-on-top are applied in the
-/// constructor — before Activate() — so the window opens in place instead of being repositioned after
-/// it is shown (repositioning across a monitor boundary post-show caused an intermittent COM crash).
-/// If there are no saved bounds, it sizes to content once the content is measurable.
+/// The window resizes normally (user drag); the content scales to fit the current client size
+/// instead of the window resizing to fit the content (see MixerViewModel.BoardScale). Position and
+/// size are both persisted. Sizing/position happen in OnRootLoaded (content measurable) rather than
+/// the constructor — repositioning before the window is shown intermittently crashed in native COM.
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    // Fallback minimums (logical px) if content measurement comes back too small.
+    // Fallback minimums (logical px) for the window itself, regardless of content scale.
     private const double MinLogicalWidth = 760;
-    private const double MinLogicalHeight = 430;
+    // Also enforced as a live drag-resize floor (see OnRootLoaded) — comfortably above the board's
+    // natural (Scale=1) height (~430), so BoardScale never needs to shrink vertically far enough to
+    // reach the built-in Slider template's own breaking point.
+    private const double MinLogicalHeight = 480;
+
+    // Content scale floor/ceiling — below the floor the ScrollViewer in MainPage takes over instead
+    // of shrinking tracks further; above the ceiling tracks stop growing (no benefit past that size).
+    private const double MinScale = 0.65;
+    private const double MaxScale = 1.6;
+
+    // RecomputeScale's measurement pass (infinite available space) never shows a scrollbar, but the
+    // real, finite layout can — if the correction targets an exact fit, DPI/font rounding can tip the
+    // real layout just past that edge, popping a scrollbar the calculation didn't reserve room for and
+    // making the board jump instead of shrinking smoothly. A few px of slack keeps scale comfortably
+    // under the exact-fit line so that never happens.
+    private const double SizingSlack = 4;
 
     private bool _sizedOnce;
+    private FrameworkElement? _root;
     private MixerViewModel? _viewModel;
 
     public MainWindow()
@@ -36,7 +53,6 @@ public sealed partial class MainWindow : Window
 
         RootFrame.Navigate(typeof(MainPage));
 
-        // Always-on-top is safe to apply immediately; window sizing waits until content is loaded.
         if (AppWindow.Presenter is OverlappedPresenter presenter)
             presenter.IsAlwaysOnTop = SettingsService.Current.AlwaysOnTop;
 
@@ -51,20 +67,47 @@ public sealed partial class MainWindow : Window
         if (sender is not FrameworkElement root)
             return;
 
+        if (_viewModel == null && RootFrame.Content is MainPage page)
+        {
+            _viewModel = page.ViewModel;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _viewModel.Outputs.CollectionChanged += OnChannelsChanged;
+            _viewModel.Inputs.CollectionChanged += OnChannelsChanged;
+        }
+
         // Size/position only after the content (and its swapchain) exist — repositioning earlier
         // (in the ctor, before the window is shown) intermittently crashed in native COM.
         if (!_sizedOnce)
         {
             _sizedOnce = true;
-            if (!TryRestoreBounds(SettingsService.Current))
-                SizeToContentAndCenter(root);
-        }
+            _root = root;
 
-        if (_viewModel == null && RootFrame.Content is MainPage page)
-        {
-            _viewModel = page.ViewModel;
-            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            if (AppWindow.Presenter is OverlappedPresenter presenter)
+            {
+                double rasterScale = root.XamlRoot?.RasterizationScale ?? 1.0;
+                presenter.PreferredMinimumHeight = (int)Math.Ceiling(MinLogicalHeight * rasterScale);
+            }
+
+            bool restoredPosition = TryRestorePosition(SettingsService.Current);
+            InitializeSize(root, keepPosition: restoredPosition);
+            AppWindow.Changed += OnAppWindowChanged;
         }
+    }
+
+    private void OnChannelsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_root == null)
+            return;
+
+        // Defer to the next UI pass so the ItemsControl has finished adding/removing its container
+        // before we measure — measuring mid-collection-change would read stale desired size.
+        DispatcherQueue.TryEnqueue(RecomputeScale);
+    }
+
+    private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
+    {
+        if (args.DidSizeChange)
+            RecomputeScale();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -77,74 +120,139 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private bool TryRestoreBounds(AppSettings settings)
+    private bool TryRestorePosition(AppSettings settings)
     {
-        if (settings.WindowX is not int x || settings.WindowY is not int y ||
-            settings.WindowWidth is not int w || settings.WindowHeight is not int h ||
-            w <= 0 || h <= 0)
-        {
+        if (settings.WindowX is not int x || settings.WindowY is not int y)
             return false;
-        }
 
-        // Find the display holding the saved window's centre; if it's gone, fall back to centering.
-        var display = FindDisplayForCenter(x + w / 2, y + h / 2);
+        // Find the display holding the saved position; if it's gone, fall back to centering.
+        var display = FindDisplayForCenter(x, y);
         if (display == null)
             return false;
 
-        // Clamp fully within that one display's work area. Restoring a rect that straddles two
-        // monitors made MoveAndResize crash intermittently (native COM re-entrancy at the DPI boundary).
-        RectInt32 wa = display.WorkArea;
-        int cw = Math.Min(w, wa.Width);
-        int ch = Math.Min(h, wa.Height);
-        int cx = Math.Clamp(x, wa.X, wa.X + wa.Width - cw);
-        int cy = Math.Clamp(y, wa.Y, wa.Y + wa.Height - ch);
+        RectInt32 workArea = display.WorkArea;
+        int cx = Math.Clamp(x, workArea.X, workArea.X + workArea.Width - 1);
+        int cy = Math.Clamp(y, workArea.Y, workArea.Y + workArea.Height - 1);
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
             presenter.Restore();
 
-        // Separate Resize + Move (not MoveAndResize): the combined call crashed intermittently in
-        // native COM on this Windows App SDK build; the two-step form matches the stable content path.
-        AppWindow.Resize(new SizeInt32(cw, ch));
         AppWindow.Move(new PointInt32(cx, cy));
         return true;
     }
 
-    /// <summary>The display nearest the saved window centre (Nearest keeps us on-screen even if the
-    /// original monitor was unplugged or the layout rearranged). Uses GetFromPoint rather than
-    /// FindAll(), whose COM enumeration was crashing intermittently at startup.</summary>
+    /// <summary>The display nearest the given point (Nearest keeps us on-screen even if the original
+    /// monitor was unplugged or the layout rearranged). Uses GetFromPoint rather than FindAll(), whose
+    /// COM enumeration was crashing intermittently at startup.</summary>
     private static DisplayArea? FindDisplayForCenter(int cx, int cy)
         => DisplayArea.GetFromPoint(new PointInt32(cx, cy), DisplayAreaFallback.Nearest);
 
-    private void SizeToContentAndCenter(FrameworkElement root)
+    /// <summary>Desired size of the content at whatever BoardScale is currently applied.</summary>
+    private static (double width, double height) MeasureContent(FrameworkElement root)
     {
         root.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         Size desired = root.DesiredSize;
+        return (desired.Width, desired.Height);
+    }
 
-        double scale = root.XamlRoot?.RasterizationScale ?? 1.0;
+    /// <summary>First-run sizing: restores the persisted client size if present, otherwise falls back
+    /// to the natural content size at Scale=1. Position handling mirrors the old SizeToContent — kept
+    /// (clamped on-screen) when restored, centered otherwise. Finishes by computing the initial scale
+    /// for whatever size was applied.</summary>
+    private void InitializeSize(FrameworkElement root, bool keepPosition)
+    {
+        var settings = SettingsService.Current;
+        double rasterScale = root.XamlRoot?.RasterizationScale ?? 1.0;
 
-        double logicalW = Math.Max(desired.Width, MinLogicalWidth);
-        double logicalH = Math.Max(desired.Height, MinLogicalHeight);
+        int w, h;
+        if (settings.WindowWidth is int savedW && settings.WindowHeight is int savedH)
+        {
+            w = savedW;
+            h = savedH;
+        }
+        else
+        {
+            // BoardScale is still its default (1.0) here — RecomputeScale hasn't run yet.
+            var (naturalWidth, naturalHeight) = MeasureContent(root);
+            w = (int)Math.Ceiling(naturalWidth * rasterScale);
+            h = (int)Math.Ceiling(naturalHeight * rasterScale);
+        }
 
-        int w = (int)Math.Ceiling(logicalW * scale);
-        int h = (int)Math.Ceiling(logicalH * scale);
+        PointInt32 pos = AppWindow.Position;
+        var display = (keepPosition ? FindDisplayForCenter(pos.X, pos.Y) : null)
+            ?? DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
 
-        RectInt32 workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
-        w = Math.Min(w, workArea.Width);
-        h = Math.Min(h, workArea.Height);
+        RectInt32 workArea = display.WorkArea;
+        w = Math.Clamp(w, (int)Math.Ceiling(MinLogicalWidth * rasterScale), workArea.Width);
+        h = Math.Clamp(h, (int)Math.Ceiling(MinLogicalHeight * rasterScale), workArea.Height);
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
             presenter.Restore();
 
         AppWindow.ResizeClient(new SizeInt32(w, h));
 
-        int x = workArea.X + (workArea.Width - AppWindow.Size.Width) / 2;
-        int y = workArea.Y + (workArea.Height - AppWindow.Size.Height) / 2;
+        int x, y;
+        if (keepPosition)
+        {
+            x = Math.Clamp(pos.X, workArea.X, workArea.X + workArea.Width - AppWindow.Size.Width);
+            y = Math.Clamp(pos.Y, workArea.Y, workArea.Y + workArea.Height - AppWindow.Size.Height);
+        }
+        else
+        {
+            x = workArea.X + (workArea.Width - AppWindow.Size.Width) / 2;
+            y = workArea.Y + (workArea.Height - AppWindow.Size.Height) / 2;
+        }
+
+        // Separate Resize + Move (not MoveAndResize): the combined call crashed intermittently in
+        // native COM on this Windows App SDK build.
         AppWindow.Move(new PointInt32(x, y));
+
+        RecomputeScale();
+    }
+
+    /// <summary>Updates BoardScale so the content fills the window's current client size — the window
+    /// itself is never resized here. A single estimate from the size at Scale=1 undershoots: things like
+    /// the ItemsControl spacing, the divider, page padding and the device-selector ComboBoxes in
+    /// MainPage don't scale with BoardScale, only the ChannelStrip cards do, so the content's actual
+    /// size isn't a linear function of scale alone. Instead we measure at the current trial scale and
+    /// correct by the ratio of available to actual size, repeating until it converges (usually 1-2
+    /// passes). Below MinScale the ScrollViewer in MainPage takes over instead of shrinking further.</summary>
+    private void RecomputeScale()
+    {
+        if (_viewModel == null || _root == null)
+            return;
+
+        double rasterScale = _root.XamlRoot?.RasterizationScale ?? 1.0;
+        SizeInt32 clientSize = AppWindow.ClientSize;
+        double availableWidth = clientSize.Width / rasterScale;
+        double availableHeight = clientSize.Height / rasterScale;
+
+        double scale = _viewModel.BoardScale;
+        for (int i = 0; i < 4; i++)
+        {
+            if (_viewModel.BoardScale != scale)
+                _viewModel.BoardScale = scale;
+
+            var (width, height) = MeasureContent(_root);
+            if (width <= 0 || height <= 0)
+                return;
+
+            double factor = Math.Min((availableWidth - SizingSlack) / width, (availableHeight - SizingSlack) / height);
+            double next = Math.Clamp(scale * factor, MinScale, MaxScale);
+            if (Math.Abs(next - scale) < 0.002)
+            {
+                scale = next;
+                break;
+            }
+            scale = next;
+        }
+
+        _viewModel.BoardScale = scale;
     }
 
     private void OnWindowClosed(object sender, WindowEventArgs e)
     {
-        // Only persist bounds from the normal (restored) state — not minimized/maximized.
+        // Only persist position/size from the normal (restored) state — not minimized/maximized.
         if (AppWindow.Presenter is OverlappedPresenter presenter &&
             presenter.State != OverlappedPresenterState.Restored)
         {
@@ -153,11 +261,10 @@ public sealed partial class MainWindow : Window
 
         var settings = SettingsService.Current;
         var pos = AppWindow.Position;
-        var size = AppWindow.Size;
         settings.WindowX = pos.X;
         settings.WindowY = pos.Y;
-        settings.WindowWidth = size.Width;
-        settings.WindowHeight = size.Height;
+        settings.WindowWidth = AppWindow.ClientSize.Width;
+        settings.WindowHeight = AppWindow.ClientSize.Height;
         SettingsService.Save();
     }
 }
