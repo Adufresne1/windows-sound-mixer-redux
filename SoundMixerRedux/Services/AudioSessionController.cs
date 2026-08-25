@@ -27,6 +27,10 @@ public sealed class AudioSessionController : IAudioControl, IAudioSessionEventsH
     /// <summary>Raised on the UI thread when the session expires or is disconnected.</summary>
     public event Action? Disconnected;
 
+    /// <summary>Raised on the UI thread when Windows reports an explicit display-name change for this
+    /// session — some apps set it shortly after the session is created rather than at creation time.</summary>
+    public event Action? DisplayNameChanged;
+
     public uint ProcessId
     {
         get { try { return _session.GetProcessID; } catch { return 0; } }
@@ -54,6 +58,13 @@ public sealed class AudioSessionController : IAudioControl, IAudioSessionEventsH
         get { try { return _session.AudioMeterInformation.MasterPeakValue; } catch { return 0f; } }
     }
 
+    /// <summary>Explicit display name the app set on its session (empty if none) — takes priority over
+    /// our own process-based name resolution when present (see ProcessNaming / AMDRSServ investigation).</summary>
+    public string DisplayName
+    {
+        get { try { return _session.DisplayName; } catch { return string.Empty; } }
+    }
+
     // ---- IAudioSessionEventsHandler (callbacks arrive on MTA COM threads) ----
 
     public void OnVolumeChanged(float volume, bool isMuted) => _ui.TryEnqueue(() => ExternalChange?.Invoke());
@@ -67,7 +78,7 @@ public sealed class AudioSessionController : IAudioControl, IAudioSessionEventsH
     public void OnSessionDisconnected(AudioSessionDisconnectReason disconnectReason)
         => _ui.TryEnqueue(() => Disconnected?.Invoke());
 
-    public void OnDisplayNameChanged(string displayName) { }
+    public void OnDisplayNameChanged(string displayName) => _ui.TryEnqueue(() => DisplayNameChanged?.Invoke());
     public void OnIconPathChanged(string iconPath) { }
     public void OnChannelVolumeChanged(uint channelCount, IntPtr newVolumes, uint channelIndex) { }
     public void OnGroupingParamChanged(ref Guid groupingId) { }
@@ -77,5 +88,6 @@ public sealed class AudioSessionController : IAudioControl, IAudioSessionEventsH
         // NAudio owns/disposes the underlying AudioSessionControl via its SessionManager.
         ExternalChange = null;
         Disconnected = null;
+        DisplayNameChanged = null;
     }
 }

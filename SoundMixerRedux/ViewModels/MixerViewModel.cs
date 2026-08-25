@@ -39,6 +39,7 @@ public partial class MixerViewModel : ObservableObject
     private readonly Dictionary<ChannelViewModel, IAudioControl> _controlByChannel = new();
     private readonly Dictionary<AudioSessionGroup, ChannelViewModel> _channelByGroup = new();
     private readonly Dictionary<AudioSessionGroup, Action> _groupHandlers = new();
+    private readonly Dictionary<AudioSessionGroup, Action> _nameHandlers = new();
 
     // Solo: mute states captured before a solo engaged, restored when it releases (per section).
     private readonly Dictionary<ChannelViewModel, bool> _priorMutesOut = new();
@@ -256,9 +257,30 @@ public partial class MixerViewModel : ObservableObject
                 AddSessionChannel(g);
     }
 
+    // A session's own explicit display name (when the app set one) takes priority over our
+    // process-based guess — needed for processes that share a session with another app (observed
+    // with AMDRSServ, the AMD Radeon Software background service, "stealing" a game's session).
+    private static (string Name, uint IconPid) ResolveChannelName(AudioSessionGroup group)
+    {
+        var (fallbackName, iconPid) = ProcessNaming.Resolve(group.ProcessId, group.IsSystemSounds);
+        var displayName = group.DisplayName;
+        // Windows-owned sessions (e.g. System Sounds) expose an unresolved MUI indirect string
+        // reference ("@%SystemRoot%\...,-nnnn") rather than a real name — never show it as-is.
+        bool usable = !string.IsNullOrWhiteSpace(displayName) && !displayName!.StartsWith('@');
+        return (usable ? displayName! : fallbackName, iconPid);
+    }
+
+    private void RefreshChannelName(AudioSessionGroup group, ChannelViewModel ch)
+    {
+        var (name, _) = ResolveChannelName(group);
+        ch.Name = name;
+        ch.Initials = InitialsOf(name);
+        ch.TileColor = ColorFor(name);
+    }
+
     private void AddSessionChannel(AudioSessionGroup group)
     {
-        var (name, iconPid) = ProcessNaming.Resolve(group.ProcessId, group.IsSystemSounds);
+        var (name, iconPid) = ResolveChannelName(group);
         var ch = new ChannelViewModel { Name = name, Initials = InitialsOf(name), TileColor = ColorFor(name), Scale = BoardScale };
 
         // Seed from Windows before wiring the handler so it doesn't echo straight back.
@@ -273,6 +295,13 @@ public partial class MixerViewModel : ObservableObject
         _channelByGroup[group] = ch;
         _groupHandlers[group] = handler;
         group.ExternalChange += handler;
+
+        // Some apps (e.g. games sharing a session with a GPU-vendor audio component) set their
+        // session's explicit display name shortly after creation rather than before — re-resolve
+        // the name if/when that happens instead of being stuck with the process-based fallback.
+        Action nameHandler = () => RefreshChannelName(group, ch);
+        _nameHandlers[group] = nameHandler;
+        group.DisplayNameChanged += nameHandler;
 
         Outputs.Add(ch);
 
@@ -295,6 +324,11 @@ public partial class MixerViewModel : ObservableObject
         {
             group.ExternalChange -= handler;
             _groupHandlers.Remove(group);
+        }
+        if (_nameHandlers.TryGetValue(group, out var nameHandler))
+        {
+            group.DisplayNameChanged -= nameHandler;
+            _nameHandlers.Remove(group);
         }
         ch.PropertyChanged -= OnChannelPropertyChanged;
         _controlByChannel.Remove(ch);

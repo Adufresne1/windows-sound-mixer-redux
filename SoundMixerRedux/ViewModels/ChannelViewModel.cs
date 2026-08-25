@@ -50,18 +50,23 @@ public partial class ChannelViewModel : ObservableObject
     [ObservableProperty]
     private double _scale = 1.0;
 
-    public string Name { get; set; } = string.Empty;
+    /// <summary>Can change after creation: some sessions set their explicit display name shortly
+    /// after being created rather than before (see ResolveChannelName/RefreshChannelName).</summary>
+    [ObservableProperty]
+    private string _name = string.Empty;
 
     public bool IsMaster { get; set; }
 
     /// <summary>Two-letter initials shown on the app tile (mock stand-in for the real app icon).</summary>
-    public string Initials { get; set; } = string.Empty;
+    [ObservableProperty]
+    private string _initials = string.Empty;
 
     /// <summary>Segoe Fluent Icons glyph used for Master channels (Volume / Microphone).</summary>
     public string? Glyph { get; set; }
 
     /// <summary>Tile background colour (hex), approximating the app's brand colour in the mockups.</summary>
-    public string TileColor { get; set; } = "#3A7BD5";
+    [ObservableProperty]
+    private string _tileColor = "#3A7BD5";
 
     /// <summary>Real app icon extracted from the session's process (null → fall back to initials).</summary>
     [ObservableProperty]
