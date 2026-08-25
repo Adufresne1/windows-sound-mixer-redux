@@ -405,7 +405,7 @@ public partial class MixerViewModel : ObservableObject
         bool anySolo = section.Any(c => c.IsSoloed);
         foreach (var ch in section)
         {
-            bool active = !ch.IsMuted && (!anySolo || ch.IsSoloed);
+            bool active = !ch.IsMuted && (ch.IsMaster || !anySolo || ch.IsSoloed);
             // Post-fader: reflect the level leaving the mixer for this channel = raw peak × fader gain.
             float raw = active ? (ControlFor(ch)?.Peak ?? 0f) : 0f;
             double target = PeakToMeterPercent(raw * (float)(ch.Volume / 100.0));
