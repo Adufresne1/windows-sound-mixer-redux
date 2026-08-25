@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -72,6 +73,11 @@ public partial class MixerViewModel : ObservableObject
     /// <summary>Recomputed by MainWindow whenever the window is resized or the track count changes;
     /// propagated to every channel's Scale so ChannelStrip.xaml grows/shrinks with the window.</summary>
     [ObservableProperty] private double _boardScale = 1.0;
+
+    // Hidden tracks (Phase E).
+    [ObservableProperty] private bool _hiddenTrackSelectionModeActive;
+    [ObservableProperty] private bool _anyChannelHidden;
+    [ObservableProperty] private bool _hiddenChannelPlayingSound;
 
     public MixerViewModel()
     {
@@ -242,6 +248,23 @@ public partial class MixerViewModel : ObservableObject
         foreach (var ch in Inputs) ch.Scale = value;
     }
 
+    partial void OnHiddenTrackSelectionModeActiveChanged(bool value)
+    {
+        foreach (var ch in Outputs) ch.SelectionModeActive = value;
+        foreach (var ch in Inputs) ch.SelectionModeActive = value;
+    }
+
+    [RelayCommand]
+    private void ManageHiddenTracks() => HiddenTrackSelectionModeActive = true;
+
+    [RelayCommand]
+    private void FinishHiddenTrackSelection() => HiddenTrackSelectionModeActive = false;
+
+    private void RecomputeAnyChannelHidden()
+    {
+        AnyChannelHidden = Outputs.Concat(Inputs).Any(c => c.IsHidden);
+    }
+
     // ---- Session channels (add/remove reconciliation) ----
 
     private void ReconcileOutputSessions()
@@ -285,6 +308,8 @@ public partial class MixerViewModel : ObservableObject
 
         // Seed from Windows before wiring the handler so it doesn't echo straight back.
         try { ch.Volume = group.VolumeScalar * 100.0; ch.IsMuted = group.Mute; } catch { }
+        ch.IsHidden = SettingsService.Current.HiddenChannelNames.Contains(name);
+        ch.SelectionModeActive = HiddenTrackSelectionModeActive;
         ch.PropertyChanged += OnChannelPropertyChanged;
 
         ch.IconImage = TryLoadIcon(iconPid);
@@ -304,6 +329,7 @@ public partial class MixerViewModel : ObservableObject
         group.DisplayNameChanged += nameHandler;
 
         Outputs.Add(ch);
+        RecomputeAnyChannelHidden();
 
         // If a solo is active in this section, fold the newcomer in (muted + dimmed + mute locked).
         if (Outputs.Any(c => c.IsSoloed) && !ch.IsMaster)
@@ -335,6 +361,7 @@ public partial class MixerViewModel : ObservableObject
         _channelByGroup.Remove(group);
         _priorMutesOut.Remove(ch);
         Outputs.Remove(ch);
+        RecomputeAnyChannelHidden();
     }
 
     // ---- Volume/mute plumbing ----
@@ -367,6 +394,22 @@ public partial class MixerViewModel : ObservableObject
         if (e.PropertyName == nameof(ChannelViewModel.IsSoloed))
         {
             ApplySolo(changed);
+            return;
+        }
+
+        if (e.PropertyName == nameof(ChannelViewModel.IsHidden))
+        {
+            if (changed.IsHidden)
+            {
+                if (!SettingsService.Current.HiddenChannelNames.Contains(changed.Name))
+                    SettingsService.Current.HiddenChannelNames.Add(changed.Name);
+            }
+            else
+            {
+                SettingsService.Current.HiddenChannelNames.Remove(changed.Name);
+            }
+            SettingsService.Save();
+            RecomputeAnyChannelHidden();
             return;
         }
 
@@ -458,6 +501,10 @@ public partial class MixerViewModel : ObservableObject
     {
         TickSection(Outputs);
         TickSection(Inputs);
+        // The smooth-fall decay below asymptotically approaches 0 but never truly reaches it once a
+        // channel has ever made sound, so ">0" would stay true almost indefinitely — a small floor
+        // matches what's already visually silent on the meter.
+        HiddenChannelPlayingSound = Outputs.Concat(Inputs).Any(c => c.IsHidden && c.Peak > 0.5);
     }
 
     private void TickSection(ObservableCollection<ChannelViewModel> section)
