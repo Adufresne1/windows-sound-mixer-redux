@@ -50,6 +50,41 @@ public partial class ChannelViewModel : ObservableObject
     [ObservableProperty]
     private double _scale = 1.0;
 
+    /// <summary>Pixel height of the VU meter's "unfilled" mask. Depends on both Peak and Scale (the
+    /// meter's real height is 180 * Scale, not a fixed 180) — computed here instead of a XAML converter
+    /// because a converter only sees one bound value and can't combine the two.</summary>
+    [ObservableProperty]
+    private double _meterMaskHeight = 180;
+
+    partial void OnPeakChanged(double value) => RecomputeMeterMaskHeight();
+    partial void OnScaleChanged(double value) => RecomputeMeterMaskHeight();
+
+    private void RecomputeMeterMaskHeight()
+    {
+        MeterMaskHeight = (1.0 - Math.Clamp(Peak, 0, 100) / 100.0) * 180.0 * Scale;
+    }
+
+    /// <summary>Persisted per-process choice to collapse this strip from the normal view (Phase E).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowInList))]
+    [NotifyPropertyChangedFor(nameof(ShowHiddenBadge))]
+    private bool _isHidden;
+
+    /// <summary>Pushed down by MixerViewModel while the "manage hidden tracks" mode is active — forces
+    /// every strip (including hidden ones) visible so the user can toggle them.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowInList))]
+    [NotifyPropertyChangedFor(nameof(CanToggleHidden))]
+    [NotifyPropertyChangedFor(nameof(ShowHiddenBadge))]
+    private bool _selectionModeActive;
+
+    public bool ShowInList => !IsHidden || SelectionModeActive;
+
+    /// <summary>Master endpoints are never hideable.</summary>
+    public bool CanToggleHidden => SelectionModeActive && !IsMaster;
+
+    public bool ShowHiddenBadge => IsHidden && SelectionModeActive;
+
     public string Name { get; set; } = string.Empty;
 
     public bool IsMaster { get; set; }

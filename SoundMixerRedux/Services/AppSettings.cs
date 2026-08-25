@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace SoundMixerRedux.Services;
 
 /// <summary>
@@ -12,6 +14,10 @@ public sealed class AppSettings
     public bool ShowDbScale { get; set; } = true;
     public bool StickToRight { get; set; }
     public bool Pinned { get; set; }
+
+    /// <summary>Process names (ChannelViewModel.Name, resolved by ProcessNaming) currently collapsed
+    /// from the mixer view (Phase E — "manage hidden tracks").</summary>
+    public List<string> HiddenChannelNames { get; set; } = new();
 
     public int? WindowX { get; set; }
     public int? WindowY { get; set; }

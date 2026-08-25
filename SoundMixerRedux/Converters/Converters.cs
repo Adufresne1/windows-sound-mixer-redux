@@ -24,23 +24,6 @@ public sealed class PercentToHeightConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>Maps a 0..100 percentage to the *remaining* pixel height (max − value). Used to mask the
-/// unfilled top of a VU meter so the colour zones stay anchored to the meter's full height.</summary>
-public sealed class PercentToRemainingHeightConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, string language)
-    {
-        double pct = value is double d ? d : 0;
-        double max = 180;
-        if (parameter is string s && double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var m))
-            max = m;
-        return (1.0 - Math.Clamp(pct, 0, 100) / 100.0) * max;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-        => throw new NotSupportedException();
-}
-
 /// <summary>Parses a "#RRGGBB" / "#AARRGGBB" hex string into a SolidColorBrush.</summary>
 public sealed class HexToBrushConverter : IValueConverter
 {
@@ -80,6 +63,20 @@ public sealed class BoolToVisibilityConverter : IValueConverter
             b = !b;
         return b ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+        => throw new NotSupportedException();
+}
+
+/// <summary>Bool to a fixed alert brush: true → red (hidden track producing sound), false → green
+/// (tracks hidden but silent). Used only by the aggregate hidden-tracks indicator near Settings.</summary>
+public sealed class BoolToAlertBrushConverter : IValueConverter
+{
+    private static readonly SolidColorBrush Red = new(Colors.Red);
+    private static readonly SolidColorBrush Green = new(Colors.LimeGreen);
+
+    public object Convert(object value, Type targetType, object parameter, string language)
+        => value is bool b && b ? Red : Green;
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)
         => throw new NotSupportedException();
