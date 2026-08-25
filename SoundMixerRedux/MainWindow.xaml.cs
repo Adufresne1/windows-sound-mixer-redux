@@ -42,6 +42,12 @@ public sealed partial class MainWindow : Window
     private FrameworkElement? _root;
     private MixerViewModel? _viewModel;
 
+    // Pin: SetTitleBar(null) turned out not to withdraw the native TitleBar control's own drag
+    // region (confirmed by testing — the window still dragged with no title bar assigned), so instead
+    // we re-snap to this anchor the instant AppWindow reports a position change while Pinned is on.
+    private PointInt32 _pinAnchor;
+    private bool _applyingPinSnap;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -90,6 +96,12 @@ public sealed partial class MainWindow : Window
 
             bool restoredPosition = TryRestorePosition(SettingsService.Current);
             InitializeSize(root, keepPosition: restoredPosition);
+
+            // After the window has landed at its real starting position — capturing the anchor any
+            // earlier would pin it to wherever it happened to be before TryRestorePosition/InitializeSize ran.
+            if (_viewModel != null)
+                ApplyPinned(_viewModel.Pinned);
+
             AppWindow.Changed += OnAppWindowChanged;
         }
     }
@@ -108,6 +120,13 @@ public sealed partial class MainWindow : Window
     {
         if (args.DidSizeChange)
             RecomputeScale();
+
+        if (args.DidPositionChange && !_applyingPinSnap && _viewModel?.Pinned == true)
+        {
+            _applyingPinSnap = true;
+            try { AppWindow.Move(_pinAnchor); }
+            finally { _applyingPinSnap = false; }
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -118,6 +137,18 @@ public sealed partial class MainWindow : Window
         {
             presenter.IsAlwaysOnTop = _viewModel.AlwaysOnTop;
         }
+        else if (e.PropertyName == nameof(MixerViewModel.Pinned) && _viewModel != null)
+        {
+            ApplyPinned(_viewModel.Pinned);
+        }
+    }
+
+    /// <summary>Pin: captures the position to re-snap to whenever it drifts (see OnAppWindowChanged).
+    /// Only needs to act when turning on — the anchor is simply wherever the window already is.</summary>
+    private void ApplyPinned(bool pinned)
+    {
+        if (pinned)
+            _pinAnchor = AppWindow.Position;
     }
 
     private bool TryRestorePosition(AppSettings settings)
@@ -249,6 +280,14 @@ public sealed partial class MainWindow : Window
 
         _viewModel.BoardScale = scale;
     }
+
+    /// <summary>Stick to right (Settings): the X a programmatic resize should land on to keep the
+    /// right edge fixed instead of the left. Nothing calls this yet — today's only resizes are the
+    /// user's own drag (which already anchors wherever they grab) and the one-time startup sizing
+    /// (which has no "old" window to anchor against). Reserved for the auto-growth-past-MaxScale
+    /// idea noted in RecomputeScale's own history, if that's ever built.</summary>
+    private static int AnchorX(int oldX, int oldWidth, int newWidth, bool stickToRight)
+        => stickToRight ? oldX + (oldWidth - newWidth) : oldX;
 
     private void OnWindowClosed(object sender, WindowEventArgs e)
     {
