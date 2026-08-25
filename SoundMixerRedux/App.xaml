@@ -37,6 +37,7 @@
             <conv:PercentToRemainingHeightConverter x:Key="PercentToRemainingHeight" />
             <conv:HexToBrushConverter x:Key="HexToBrush" />
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <conv:ScaleConverter x:Key="Scale" />
 
             <!-- VU meter colour zones (theme-independent): green ≤ -6 dB, yellow -6→-2, red -2→0 -->
             <LinearGradientBrush x:Key="MeterBrush" StartPoint="0,1" EndPoint="0,0">

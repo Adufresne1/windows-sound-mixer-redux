@@ -84,3 +84,20 @@ public sealed class BoolToVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language)
         => throw new NotSupportedException();
 }
+
+/// <summary>Multiplies ConverterParameter (a base pixel value) by the bound Scale. Used to keep every
+/// ChannelStrip dimension a real layout value (not a RenderTransform), so scaling never mispositions
+/// Popup-based UI (tooltips, flyouts) the way a Viewbox around this content did (see Phase 4 history).</summary>
+public sealed class ScaleConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        double scale = value is double d ? d : 1.0;
+        double baseValue = parameter is string s && double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var b) ? b : 0;
+        double scaled = baseValue * scale;
+        return targetType == typeof(Thickness) ? new Thickness(scaled) : scaled;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+        => throw new NotSupportedException();
+}
