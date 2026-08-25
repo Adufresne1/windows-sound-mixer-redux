@@ -27,19 +27,26 @@ public sealed class AudioSessionGroup : IAudioControl, IDisposable
     /// <summary>Raised (UI thread) when the last member has disconnected.</summary>
     public event Action? Emptied;
 
+    /// <summary>Raised (UI thread) when a member reports an explicit display-name change.</summary>
+    public event Action? DisplayNameChanged;
+
     public void Add(AudioSessionController member)
     {
         _members.Add(member);
         member.ExternalChange += OnMemberExternalChange;
+        member.DisplayNameChanged += OnMemberDisplayNameChanged;
         member.Disconnected += () => OnMemberDisconnected(member);
     }
 
     private void OnMemberExternalChange() => ExternalChange?.Invoke();
 
+    private void OnMemberDisplayNameChanged() => DisplayNameChanged?.Invoke();
+
     private void OnMemberDisconnected(AudioSessionController member)
     {
         if (!_members.Remove(member)) return;
         member.ExternalChange -= OnMemberExternalChange;
+        member.DisplayNameChanged -= OnMemberDisplayNameChanged;
         member.Dispose();
         if (_members.Count == 0)
             Emptied?.Invoke();
@@ -70,11 +77,23 @@ public sealed class AudioSessionGroup : IAudioControl, IDisposable
         }
     }
 
+    /// <summary>First non-empty explicit display name among members, if any.</summary>
+    public string? DisplayName
+    {
+        get
+        {
+            foreach (var m in _members)
+                if (!string.IsNullOrWhiteSpace(m.DisplayName)) return m.DisplayName;
+            return null;
+        }
+    }
+
     public void Dispose()
     {
         foreach (var m in _members) m.Dispose();
         _members.Clear();
         ExternalChange = null;
         Emptied = null;
+        DisplayNameChanged = null;
     }
 }
