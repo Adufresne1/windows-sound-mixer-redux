@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="SettingsButtonText.Text" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="AlwaysOnTopMenuItem.Text" xml:space="preserve">
+    <value>Always on top</value>
+  </data>
+  <data name="ShowDbScaleMenuItem.Text" xml:space="preserve">
+    <value>Show dB scale</value>
+  </data>
+  <data name="PinnedMenuItem.Text" xml:space="preserve">
+    <value>Pin (lock movement)</value>
+  </data>
+  <data name="ManageHiddenTracksMenuItem.Text" xml:space="preserve">
+    <value>Manage hidden tracks</value>
+  </data>
+  <data name="CloseAppMenuItem.Text" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="FinishSelectionButton.Content" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="HiddenTracksIndicator.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Some tracks are hidden</value>
+  </data>
+  <data name="OutputSectionLabel.Text" xml:space="preserve">
+    <value>OUTPUT</value>
+  </data>
+  <data name="InputSectionLabel.Text" xml:space="preserve">
+    <value>INPUT</value>
+  </data>
+  <data name="MuteButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Mute</value>
+  </data>
+  <data name="SoloButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Solo</value>
+  </data>
+  <data name="MasterOutputName" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="MasterInputName" xml:space="preserve">
+    <value>Microphone</value>
+  </data>
+  <data name="SystemSoundsChannelName" xml:space="preserve">
+    <value>System sounds</value>
+  </data>
+  <data name="GenericAppChannelName" xml:space="preserve">
+    <value>Application</value>
+  </data>
+</root>

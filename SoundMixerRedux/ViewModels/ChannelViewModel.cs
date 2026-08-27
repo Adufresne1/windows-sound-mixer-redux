@@ -92,6 +92,9 @@ public partial class ChannelViewModel : ObservableObject
 
     public bool IsMaster { get; set; }
 
+    /// <summary>The Windows System Sounds session — shown with a fixed glyph like Master, never a process icon.</summary>
+    public bool IsSystemSounds { get; set; }
+
     /// <summary>Two-letter initials shown on the app tile (mock stand-in for the real app icon).</summary>
     [ObservableProperty]
     private string _initials = string.Empty;
@@ -109,10 +112,10 @@ public partial class ChannelViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowInitials))]
     private ImageSource? _iconImage;
 
-    // Tile content selection: Master → glyph, session with icon → image, otherwise → initials.
-    public bool ShowGlyph => IsMaster;
-    public bool ShowIcon => !IsMaster && IconImage != null;
-    public bool ShowInitials => !IsMaster && IconImage == null;
+    // Tile content selection: Master/System Sounds → glyph, session with icon → image, otherwise → initials.
+    public bool ShowGlyph => IsMaster || IsSystemSounds;
+    public bool ShowIcon => !IsMaster && !IsSystemSounds && IconImage != null;
+    public bool ShowInitials => !IsMaster && !IsSystemSounds && IconImage == null;
 
     /// <summary>Master (endpoint) channels have no Solo — a mix always needs a source.</summary>
     public bool ShowSolo => !IsMaster;

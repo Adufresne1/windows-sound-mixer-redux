@@ -19,12 +19,10 @@ namespace SoundMixerRedux;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    // Fallback minimums (logical px) for the window itself, regardless of content scale.
+    // Fallback minimum (logical px) for the window itself, regardless of content scale. No height
+    // floor: some displays (e.g. 2560x1080) don't have room for one — better to let the board clip
+    // than to refuse a short-but-usable window.
     private const double MinLogicalWidth = 760;
-    // Also enforced as a live drag-resize floor (see OnRootLoaded) — comfortably above the board's
-    // natural (Scale=1) height (~430), so BoardScale never needs to shrink vertically far enough to
-    // reach the built-in Slider template's own breaking point.
-    private const double MinLogicalHeight = 480;
 
     // Content scale floor/ceiling — below the floor the ScrollViewer in MainPage takes over instead
     // of shrinking tracks further; above the ceiling tracks stop growing (no benefit past that size).
@@ -53,14 +51,19 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+        SetTitleBar(RootGrid);
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
 
         RootFrame.Navigate(typeof(MainPage));
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
             presenter.IsAlwaysOnTop = SettingsService.Current.AlwaysOnTop;
+            presenter.IsMinimizable = false;
+            presenter.IsMaximizable = false;
+        }
 
         if (Content is FrameworkElement root)
             root.Loaded += OnRootLoaded;
@@ -79,6 +82,7 @@ public sealed partial class MainWindow : Window
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
             _viewModel.Outputs.CollectionChanged += OnChannelsChanged;
             _viewModel.Inputs.CollectionChanged += OnChannelsChanged;
+            _viewModel.CloseRequested += (_, _) => Close();
         }
 
         // Size/position only after the content (and its swapchain) exist — repositioning earlier
@@ -87,12 +91,6 @@ public sealed partial class MainWindow : Window
         {
             _sizedOnce = true;
             _root = root;
-
-            if (AppWindow.Presenter is OverlappedPresenter presenter)
-            {
-                double rasterScale = root.XamlRoot?.RasterizationScale ?? 1.0;
-                presenter.PreferredMinimumHeight = (int)Math.Ceiling(MinLogicalHeight * rasterScale);
-            }
 
             bool restoredPosition = TryRestorePosition(SettingsService.Current);
             InitializeSize(root, keepPosition: restoredPosition);
@@ -215,7 +213,7 @@ public sealed partial class MainWindow : Window
 
         RectInt32 workArea = display.WorkArea;
         w = Math.Clamp(w, (int)Math.Ceiling(MinLogicalWidth * rasterScale), workArea.Width);
-        h = Math.Clamp(h, (int)Math.Ceiling(MinLogicalHeight * rasterScale), workArea.Height);
+        h = Math.Min(h, workArea.Height);
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
             presenter.Restore();
@@ -280,14 +278,6 @@ public sealed partial class MainWindow : Window
 
         _viewModel.BoardScale = scale;
     }
-
-    /// <summary>Stick to right (Settings): the X a programmatic resize should land on to keep the
-    /// right edge fixed instead of the left. Nothing calls this yet — today's only resizes are the
-    /// user's own drag (which already anchors wherever they grab) and the one-time startup sizing
-    /// (which has no "old" window to anchor against). Reserved for the auto-growth-past-MaxScale
-    /// idea noted in RecomputeScale's own history, if that's ever built.</summary>
-    private static int AnchorX(int oldX, int oldWidth, int newWidth, bool stickToRight)
-        => stickToRight ? oldX + (oldWidth - newWidth) : oldX;
 
     private void OnWindowClosed(object sender, WindowEventArgs e)
     {

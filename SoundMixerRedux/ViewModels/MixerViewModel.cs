@@ -67,7 +67,6 @@ public partial class MixerViewModel : ObservableObject
     // Settings (mock, visual only until Phase 7).
     [ObservableProperty] private bool _alwaysOnTop;
     [ObservableProperty] private bool _showDbScale = true;
-    [ObservableProperty] private bool _stickToRight;
     [ObservableProperty] private bool _pinned;
 
     /// <summary>Recomputed by MainWindow whenever the window is resized or the track count changes;
@@ -83,11 +82,10 @@ public partial class MixerViewModel : ObservableObject
     {
         ShowDbScale = SettingsService.Current.ShowDbScale;
         AlwaysOnTop = SettingsService.Current.AlwaysOnTop;
-        StickToRight = SettingsService.Current.StickToRight;
         Pinned = SettingsService.Current.Pinned;
 
-        _masterOutput = new ChannelViewModel { Name = "Système", IsMaster = true, Volume = 80, Glyph = char.ConvertFromUtf32(0xE767), TileColor = "#3A7BD5" };
-        _masterInput = new ChannelViewModel { Name = "Microphone", IsMaster = true, Volume = 70, Glyph = char.ConvertFromUtf32(0xE720), TileColor = "#1F9D6B" };
+        _masterOutput = new ChannelViewModel { Name = Loc.Get("MasterOutputName"), IsMaster = true, Volume = 80, Glyph = char.ConvertFromUtf32(0xE767), TileColor = "#3A7BD5" };
+        _masterInput = new ChannelViewModel { Name = Loc.Get("MasterInputName"), IsMaster = true, Volume = 70, Glyph = char.ConvertFromUtf32(0xE720), TileColor = "#1F9D6B" };
 
         AddChannel(_masterOutput, Outputs);
         AddChannel(_masterInput, Inputs);
@@ -230,12 +228,6 @@ public partial class MixerViewModel : ObservableObject
         SettingsService.Save();
     }
 
-    partial void OnStickToRightChanged(bool value)
-    {
-        SettingsService.Current.StickToRight = value;
-        SettingsService.Save();
-    }
-
     partial void OnPinnedChanged(bool value)
     {
         SettingsService.Current.Pinned = value;
@@ -259,6 +251,12 @@ public partial class MixerViewModel : ObservableObject
 
     [RelayCommand]
     private void FinishHiddenTrackSelection() => HiddenTrackSelectionModeActive = false;
+
+    /// <summary>Chromeless window has no native close button — Settings → Fermer requests it instead.</summary>
+    public event EventHandler? CloseRequested;
+
+    [RelayCommand]
+    private void CloseApp() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
     private void RecomputeAnyChannelHidden()
     {
@@ -305,6 +303,8 @@ public partial class MixerViewModel : ObservableObject
     {
         var (name, iconPid) = ResolveChannelName(group);
         var ch = new ChannelViewModel { Name = name, Initials = InitialsOf(name), TileColor = ColorFor(name), Scale = BoardScale };
+        ch.IsSystemSounds = group.IsSystemSounds;
+        if (group.IsSystemSounds) ch.Glyph = char.ConvertFromUtf32(0xE977); // PC1 (Segoe Fluent Icons)
 
         // Seed from Windows before wiring the handler so it doesn't echo straight back.
         try { ch.Volume = group.VolumeScalar * 100.0; ch.IsMuted = group.Mute; } catch { }

@@ -57,10 +57,10 @@
                         Text="{Binding Initials}"
                         Visibility="{Binding ShowInitials, Converter={StaticResource BoolToVisibility}}" />
                     <FontIcon
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
                         FontFamily="Segoe Fluent Icons"
-                        FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=14}"
+                        FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=28}"
                         Foreground="Red"
                         Glyph="&#xE7B3;"
                         Visibility="{Binding ShowHiddenBadge, Converter={StaticResource BoolToVisibility}}" />
@@ -143,6 +143,7 @@
                 Orientation="Horizontal"
                 Spacing="7">
                 <ToggleButton
+                    x:Uid="MuteButton"
                     Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=34}"
                     Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=30}"
                     Padding="0"
@@ -152,8 +153,7 @@
                     FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=14}"
                     FontWeight="SemiBold"
                     IsChecked="{Binding IsMuted, Mode=TwoWay}"
-                    IsEnabled="{Binding MuteEnabled}"
-                    ToolTipService.ToolTip="Muet">
+                    IsEnabled="{Binding MuteEnabled}">
                     <ToggleButton.Resources>
                         <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#29FF99A4" />
                         <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#3DFF99A4" />
@@ -165,6 +165,7 @@
                     </ToggleButton.Resources>
                 </ToggleButton>
                 <ToggleButton
+                    x:Uid="SoloButton"
                     Width="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=34}"
                     Height="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=30}"
                     Padding="0"
@@ -174,7 +175,6 @@
                     FontSize="{Binding Scale, Converter={StaticResource Scale}, ConverterParameter=14}"
                     FontWeight="SemiBold"
                     IsChecked="{Binding IsSoloed, Mode=TwoWay}"
-                    ToolTipService.ToolTip="Solo"
                     Visibility="{Binding ShowSolo, Converter={StaticResource BoolToVisibility}}">
                     <ToggleButton.Resources>
                         <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#29FFD479" />
