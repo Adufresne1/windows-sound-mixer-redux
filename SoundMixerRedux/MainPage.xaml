@@ -15,6 +15,8 @@
 
     <!--  Board at natural size (DPI handled by the framework); scrolls if it overflows the window.  -->
     <ScrollViewer
+        x:Name="ContentScroller"
+        x:FieldModifier="public"
         HorizontalScrollBarVisibility="Auto"
         HorizontalScrollMode="Auto"
         VerticalScrollBarVisibility="Auto"

@@ -6,7 +6,6 @@ namespace SoundMixerRedux.ViewModels;
 
 /// <summary>
 /// One mixer channel (Master endpoint or a per-app session).
-/// Phase 1: mock data only — no audio backend behind these properties yet.
 /// </summary>
 public partial class ChannelViewModel : ObservableObject
 {
