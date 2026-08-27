@@ -13,21 +13,9 @@
 
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Default">
-                    <SolidColorBrush x:Key="MuteBrush" Color="#FF99A4" />
-                    <SolidColorBrush x:Key="SoloBrush" Color="#FFD479" />
-                    <SolidColorBrush x:Key="MuteSoftBrush" Color="#29FF99A4" />
-                    <SolidColorBrush x:Key="SoloSoftBrush" Color="#29FFD479" />
-                    <SolidColorBrush x:Key="MuteBorderBrush" Color="#73FF99A4" />
-                    <SolidColorBrush x:Key="SoloBorderBrush" Color="#73FFD479" />
                     <SolidColorBrush x:Key="MeterTrackBrush" Color="#2E353D" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="MuteBrush" Color="#C4314B" />
-                    <SolidColorBrush x:Key="SoloBrush" Color="#8A6D00" />
-                    <SolidColorBrush x:Key="MuteSoftBrush" Color="#29C4314B" />
-                    <SolidColorBrush x:Key="SoloSoftBrush" Color="#298A6D00" />
-                    <SolidColorBrush x:Key="MuteBorderBrush" Color="#73C4314B" />
-                    <SolidColorBrush x:Key="SoloBorderBrush" Color="#738A6D00" />
                     <SolidColorBrush x:Key="MeterTrackBrush" Color="#D2D6DB" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>

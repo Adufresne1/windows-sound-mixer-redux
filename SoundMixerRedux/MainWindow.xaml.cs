@@ -1,8 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
 using SoundMixerRedux.Services;
 using SoundMixerRedux.ViewModels;
 using Windows.Foundation;
@@ -83,6 +88,13 @@ public sealed partial class MainWindow : Window
             _viewModel.Outputs.CollectionChanged += OnChannelsChanged;
             _viewModel.Inputs.CollectionChanged += OnChannelsChanged;
             _viewModel.CloseRequested += (_, _) => Close();
+
+            // Recompute whenever anything that could move/show/hide a control fires: resize, BoardScale
+            // rescale, track add/remove, or a Visibility change (e.g. hidden-track selection mode).
+            // ViewChanged is needed too — pure scroll-offset changes move controls on screen without
+            // necessarily invalidating layout.
+            root.LayoutUpdated += (_, _) => UpdatePassthroughRegions();
+            page.ContentScroller.ViewChanged += (_, _) => UpdatePassthroughRegions();
         }
 
         // Size/position only after the content (and its swapchain) exist — repositioning earlier
@@ -277,6 +289,47 @@ public sealed partial class MainWindow : Window
         }
 
         _viewModel.BoardScale = scale;
+    }
+
+    /// <summary>SetTitleBar(RootGrid) marks the whole window as a drag region, but WinUI does NOT
+    /// automatically exclude interactive controls nested inside it — without this, any micro-mouse-
+    /// movement during a click is read as the start of a window drag instead of a click on the control.
+    /// Explicitly carves out every interactive control as click-passthrough instead.</summary>
+    private void UpdatePassthroughRegions()
+    {
+        if (_root?.XamlRoot == null)
+            return;
+
+        double rasterScale = _root.XamlRoot.RasterizationScale;
+        var rects = new List<RectInt32>();
+        CollectPassthroughRects(_root, rasterScale, rects);
+
+        InputNonClientPointerSource.GetForWindowId(AppWindow.Id)
+            .SetRegionRects(NonClientRegionKind.Passthrough, rects.ToArray());
+    }
+
+    private void CollectPassthroughRects(DependencyObject node, double rasterScale, List<RectInt32> rects)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(node);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(node, i);
+
+            if (child is FrameworkElement { Visibility: Visibility.Visible, ActualWidth: > 0, ActualHeight: > 0 } element &&
+                element is ButtonBase or ComboBox or Slider)
+            {
+                Rect bounds = element.TransformToVisual(_root)
+                    .TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+
+                rects.Add(new RectInt32(
+                    (int)Math.Round(bounds.X * rasterScale),
+                    (int)Math.Round(bounds.Y * rasterScale),
+                    (int)Math.Round(bounds.Width * rasterScale),
+                    (int)Math.Round(bounds.Height * rasterScale)));
+            }
+
+            CollectPassthroughRects(child, rasterScale, rects);
+        }
     }
 
     private void OnWindowClosed(object sender, WindowEventArgs e)

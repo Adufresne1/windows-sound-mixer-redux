@@ -17,11 +17,9 @@ using SoundMixerRedux.Services;
 namespace SoundMixerRedux.ViewModels;
 
 /// <summary>
-/// Root view model for the mixer.
-/// Phase 2: Master output/input wired to the default endpoints.
-/// Phase 3: per-app output channels are backed by real Core Audio sessions
-/// (volume/mute both ways + external reflect, dynamic add/remove).
-/// VU meters remain ambient until Phase 4.
+/// Root view model for the mixer: Master output/input plus per-app session channels,
+/// backed by real Core Audio sessions (volume/mute both ways + external reflect, dynamic
+/// add/remove, VU metering).
 /// </summary>
 public partial class MixerViewModel : ObservableObject
 {
@@ -64,7 +62,6 @@ public partial class MixerViewModel : ObservableObject
     [ObservableProperty] private AudioDeviceInfo? _selectedOutputDevice;
     [ObservableProperty] private AudioDeviceInfo? _selectedInputDevice;
 
-    // Settings (mock, visual only until Phase 7).
     [ObservableProperty] private bool _alwaysOnTop;
     [ObservableProperty] private bool _showDbScale = true;
     [ObservableProperty] private bool _pinned;
