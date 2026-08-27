@@ -52,28 +52,28 @@
                                 FontFamily="Segoe Fluent Icons"
                                 FontSize="16"
                                 Glyph="&#xE713;" />
-                            <TextBlock Text="Settings" />
+                            <TextBlock x:Uid="SettingsButtonText" />
                         </StackPanel>
                         <DropDownButton.Flyout>
                             <MenuFlyout Placement="Bottom">
-                                <ToggleMenuFlyoutItem IsChecked="{Binding AlwaysOnTop, Mode=TwoWay}" Text="Toujours au premier plan" />
-                                <ToggleMenuFlyoutItem IsChecked="{Binding ShowDbScale, Mode=TwoWay}" Text="Afficher l'échelle dB" />
-                                <ToggleMenuFlyoutItem IsChecked="{Binding StickToRight, Mode=TwoWay}" Text="Coller à droite" />
-                                <ToggleMenuFlyoutItem IsChecked="{Binding Pinned, Mode=TwoWay}" Text="Épingler (bloquer le déplacement)" />
-                                <MenuFlyoutItem Command="{Binding ManageHiddenTracksCommand}" Text="Gérer les pistes masquées" />
+                                <ToggleMenuFlyoutItem x:Uid="AlwaysOnTopMenuItem" IsChecked="{Binding AlwaysOnTop, Mode=TwoWay}" />
+                                <ToggleMenuFlyoutItem x:Uid="ShowDbScaleMenuItem" IsChecked="{Binding ShowDbScale, Mode=TwoWay}" />
+                                <ToggleMenuFlyoutItem x:Uid="PinnedMenuItem" IsChecked="{Binding Pinned, Mode=TwoWay}" />
+                                <MenuFlyoutItem x:Uid="ManageHiddenTracksMenuItem" Command="{Binding ManageHiddenTracksCommand}" />
+                                <MenuFlyoutItem x:Uid="CloseAppMenuItem" Command="{Binding CloseAppCommand}" />
                             </MenuFlyout>
                         </DropDownButton.Flyout>
                     </DropDownButton>
                     <Button
+                        x:Uid="FinishSelectionButton"
                         Command="{Binding FinishHiddenTrackSelectionCommand}"
-                        Content="Terminé"
                         Visibility="{Binding HiddenTrackSelectionModeActive, Converter={StaticResource BoolToVisibility}}" />
                     <FontIcon
+                        x:Uid="HiddenTracksIndicator"
                         FontFamily="Segoe Fluent Icons"
                         FontSize="16"
                         Foreground="{Binding HiddenChannelPlayingSound, Converter={StaticResource BoolToAlertBrush}}"
                         Glyph="&#xE7B3;"
-                        ToolTipService.ToolTip="Des pistes sont masquées"
                         Visibility="{Binding AnyChannelHidden, Converter={StaticResource BoolToVisibility}}" />
                 </StackPanel>
 
@@ -84,12 +84,12 @@
                     Orientation="Horizontal"
                     Spacing="11">
                     <TextBlock
+                        x:Uid="OutputSectionLabel"
                         VerticalAlignment="Center"
                         CharacterSpacing="60"
                         FontSize="12"
                         FontWeight="SemiBold"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Text="SORTIE" />
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     <ComboBox
                         MinWidth="200"
                         MaxWidth="260"
@@ -127,12 +127,12 @@
                 Orientation="Horizontal"
                 Spacing="11">
                 <TextBlock
+                    x:Uid="InputSectionLabel"
                     VerticalAlignment="Center"
                     CharacterSpacing="60"
                     FontSize="12"
                     FontWeight="SemiBold"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Text="ENTRÉE" />
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                 <ComboBox
                     MinWidth="180"
                     MaxWidth="240"

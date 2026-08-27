@@ -16,8 +16,8 @@ public static class ProcessNaming
     /// <returns>(friendly name, pid to extract the icon from).</returns>
     public static (string Name, uint IconPid) Resolve(uint pid, bool isSystemSounds)
     {
-        if (isSystemSounds) return ("Sons système", 0);
-        if (pid == 0) return ("Application", 0);
+        if (isSystemSounds) return (Loc.Get("SystemSoundsChannelName"), 0);
+        if (pid == 0) return (Loc.Get("GenericAppChannelName"), 0);
 
         uint current = pid;
         for (int hop = 0; hop < MaxHops; hop++)
