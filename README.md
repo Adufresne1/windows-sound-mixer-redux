@@ -6,7 +6,7 @@ Un mélangeur de volume Windows repensé — simple, lisible, Fluent (Mica, thè
 
 ## ⬇️ Télécharger (Windows x64)
 
-**[➡️ Dernière version (page des releases)](https://github.com/Adufresne1/windows-sound-mixer-redux/releases/latest)**
+**[➡️ Dernière version (page des releases)](https://github.com/Adufresne1/windows-sound-mixer-redux/releases)**
 
 ### Installation (recommandé)
 
