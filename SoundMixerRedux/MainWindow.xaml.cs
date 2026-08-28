@@ -59,7 +59,7 @@ public sealed partial class MainWindow : Window
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
         SetTitleBar(RootGrid);
 
-        AppWindow.SetIcon("Assets/AppIcon.ico");
+        AppWindow.SetIcon("Assets/TitleBarIcon.ico");
 
         RootFrame.Navigate(typeof(MainPage));
 

@@ -1,0 +1,8 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <SuppressIces>ICE03</SuppressIces>
+    <DefineConstants>ProductVersion=$(Version);PublishDir=$(MSBuildThisFileDirectory)..\SoundMixerRedux\bin\x64\Release\net8.0-windows10.0.26100.0\win-x64;IconFile=$(MSBuildThisFileDirectory)..\SoundMixerRedux\Assets\AppIcon.ico</DefineConstants>
+  </PropertyGroup>
+</Project>
