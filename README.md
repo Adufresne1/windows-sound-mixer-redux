@@ -8,12 +8,20 @@ Un mélangeur de volume Windows repensé — simple, lisible, Fluent (Mica, thè
 
 **[➡️ Dernière version (page des releases)](https://github.com/Adufresne1/windows-sound-mixer-redux/releases/latest)**
 
+### Installation (recommandé)
+
+1. Télécharge le fichier `SoundMixerRedux-*-win-x64-Setup.msi`.
+2. Double-clique dessus et suis l'installeur.
+3. Lance **Sound Mixer Redux** depuis le menu Démarrer.
+
+### Version portable (sans installation)
+
 1. Télécharge le fichier `SoundMixerRedux-*-win-x64.zip`.
 2. Extrais-le **où tu veux** (Bureau, Documents…).
 3. Ouvre le dossier `SoundMixerRedux` et double-clique **`SoundMixerRedux.exe`**.
 
-> **Aucune installation requise** — .NET 8 et le Windows App SDK sont inclus dans le zip.
-> ⚠️ Windows SmartScreen peut avertir (exe non signé) : *Informations complémentaires → Exécuter quand même*.
+> **Aucune installation requise** pour la version portable — .NET 8 et le Windows App SDK sont inclus dans le zip.
+> ⚠️ Windows SmartScreen peut avertir (installeur/exe non signés) : *Informations complémentaires → Exécuter quand même*.
 
 ## Fonctionnalités
 
